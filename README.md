@@ -8,7 +8,7 @@ Linux环境下，安装对应缺少的环境即可
 环境安装好之后，选择交叉编译器前缀，`make run`后即可编译并运行
 
 ## 2、案例
-|[doc/thread.md](doc/thread.md)           |线程创建|
+[线程创建](doc/thread.md)
 
 ## 3、运行效果
-![运行效果](https://github.com/DoctorMrGUI/TEST-OS/raw/master/doc/show.png "运行效果")
+![运行效果](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/show.png "运行效果")

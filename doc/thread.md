@@ -84,4 +84,4 @@ int main()
 ```
 
 ## 截图
-![截图](https://github.com/DoctorMrGUI/TEST-OS/raw/master/doc/thread.png "截图")
+![截图](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/thread.png "截图")
