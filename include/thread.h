@@ -3,7 +3,7 @@
 
 #include <types.h>
 
-#define KERNEL_THREAD_STEP          10
+#define KERNEL_THREAD_STEP          2
 #define KERNEL_THREAD_MAX           (1 << 8)   /* 256 */
 #define KERNEL_THREAD_STACK_SIZE    (4 * KB)
 

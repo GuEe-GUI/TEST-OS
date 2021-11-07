@@ -160,7 +160,7 @@ SET_RESOLUTION:
 
 VBE_SET_FAIL:
     mov si, VGA_MODE_FAIL_MSG
-    mov cx, 5
+    mov cx, 19
     mov di, LINE_WIDE * 2 + 60
     call POINT_MESSAGE_IN16BIT
 
@@ -500,7 +500,7 @@ SET_CUR_IN_32BITS:
 BOOT_OK_MSG             db  '[ OK ] Boot '              ; 字符串长度： 12
 MEMORY_OK_MSG           db  '[ OK ] Get Memory '        ; 字符串长度： 18
 MEMORY_ERROR_MSG        db  'Get Memory Failed! '       ; 字符串长度： 19
-VGA_MODE_FAIL_MSG       db  'Fail!'                     ; 字符串长度：  5
+VGA_MODE_FAIL_MSG       db  'Set VGA MODE Fail! '       ; 字符串长度： 19
 PROTECTED_MODE_OK_MSG   db  '[ OK ] Protected Mode '    ; 字符串长度： 22
 PAGING_OK_MSG           db  '[ OK ] Paging Mode '       ; 字符串长度： 19
 LOADING_SYSTEM_MSG      db  'Loading System... '        ; 字符串长度： 18
