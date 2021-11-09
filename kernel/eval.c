@@ -5,17 +5,16 @@
 #include <thread.h>
 #include <timer.h>
 
-extern uint32_t EVAL_VOID_START;
-extern uint32_t EVAL_VOID_END;
+extern void eval_void_start();
 
 static char cmdline_buffer[1024];
 
 EVAL_VIOD(help, "display this information")(int argc, char**argv)
 {
     int cmdline_len;
-    struct eval_void *eval_void_node = (struct eval_void *)&EVAL_VOID_START;
+    struct eval_void *eval_void_node = (struct eval_void *)&eval_void_start;
 
-    while (eval_void_node < (struct eval_void *)&EVAL_VOID_END)
+    while (eval_void_node != NULL && eval_void_node->magic == EVAL_VIOD_MAGIC)
     {
         cmdline_len = printk("%s", eval_void_node->name);
         while (cmdline_len < 10)
@@ -30,9 +29,9 @@ EVAL_VIOD(help, "display this information")(int argc, char**argv)
 
 static void exec_eval_viod(char *cmdline)
 {
-    struct eval_void *eval_void_node = (struct eval_void *)&EVAL_VOID_START;
+    struct eval_void *eval_void_node = (struct eval_void *)&eval_void_start;
 
-    while (eval_void_node < (struct eval_void *)&EVAL_VOID_END)
+    while (eval_void_node != NULL && eval_void_node->magic == EVAL_VIOD_MAGIC)
     {
         if (!strcmp(eval_void_node->name, cmdline))
         {

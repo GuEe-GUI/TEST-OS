@@ -13,8 +13,8 @@ extern irq_handler
 ; %macro 宏函数 参数个数
 %macro ISR_CODE 2
 ; 参数1：%1，参数2：%2，...
-[global ISR%1]
-ISR%1:
+global isr%1
+isr%1:
     cli                     ; 关闭中断
 
     %2                      ; 估计情况决定是否放置Push无效错误号
@@ -85,12 +85,12 @@ ISR_CODE 30,NO_ERROR_CODE
 ISR_CODE 31,NO_ERROR_CODE
 
 %macro IRQ 2
-[global IRQ%1]
-IRQ%1:
+global irq%1
+irq%1:
     cli
     push byte 0
     push byte %2
-    jmp IRQ_COMMON_STUB
+    jmp irq_common_stub
 %endmacro
 
 IRQ 0,32
@@ -110,7 +110,7 @@ IRQ 13,45
 IRQ 14,46
 IRQ 15,47
 
-IRQ_COMMON_STUB:
+irq_common_stub:
     pusha
     mov ax,ds
     push eax

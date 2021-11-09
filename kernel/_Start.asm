@@ -5,10 +5,8 @@ KERNEL_STACK_TOP equ 0x80001000
 
 extern entry
 
-[section .text]
-global _START
-
-_START:
+global _start
+_start:
     mov ax, 0x10
     mov ds, ax
     mov es, ax
@@ -19,6 +17,6 @@ _START:
 
     call entry
 
-CPU_HLT:
+cpu_hlt:
     hlt
-    jmp CPU_HLT
+    jmp cpu_hlt

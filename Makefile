@@ -23,7 +23,7 @@ ASM_KERNEL_FLAGS = -f elf32
 C_KERNEL_FLAGS = -Iinclude -Ikernel -m32 -D$(MODE) -Wall -nostdlib -fno-builtin -fno-leading-underscore
 CPP_KERNEL_FLAGS = -Wno-unused-command-line-argument -ffreestanding -fno-cxx-exceptions -fno-exceptions -fno-rtti -fno-unwind-tables -ibuiltininc -nogpulib -nostdlib
 
-LD_FLAGS = -m elf_i386 -e _START -Ttext 0x80100000
+LD_FLAGS = -m elf_i386 -e _start -Ttext 0x80100000
 
 OBJS = \
 	_Start.o\
