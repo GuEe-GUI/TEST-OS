@@ -30,6 +30,7 @@ OBJS = \
 	_IO.o\
 	_Interrupt.o\
 	_Thread.o\
+	_Eval.o\
 	start.o\
 	vbe.o\
 	interrupt.o\
@@ -44,7 +45,8 @@ OBJS = \
 	bitmap.o\
 	keyboard.o\
 	thread.o\
-	eval.o
+	eval.o\
+	cmds.o
 
 OBJS := $(addprefix $(BUILD_DIR)/,${OBJS})
 

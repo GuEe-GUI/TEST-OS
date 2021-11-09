@@ -8,6 +8,16 @@ size_t strlen(const char *str)
     return (p - str - 1);
 }
 
+char strcmp(const char *str1, const char *str2)
+{
+    while (*str1 != 0 && *str1 == *str2)
+    {
+        str1++;
+        str2++;
+    }
+    return *str1 < *str2 ? -1 : *str1 > *str2;
+}
+
 void *memcpy(void *dst, const void *src, uint8_t size)
 {
     char *d;

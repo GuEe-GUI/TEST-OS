@@ -7,7 +7,7 @@
 
 static struct thread *thread_head[THREAD_STATUS_SIZE] = {NULL};
 static struct thread *current_thread = NULL;
-static tid_t tid_bitmap[KERNEL_THREAD_MAX / (sizeof(tid_t) * 8)] = {1};
+static tid_t tid_bitmap[KERNEL_THREAD_MAX / (sizeof(tid_t) * 8)] = {1}; /* 0号tid为缺省值 */
 
 extern void switch_to_next_thread(void *prev, void *next);
 

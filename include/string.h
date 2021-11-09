@@ -4,6 +4,7 @@
 #include <types.h>
 
 size_t strlen(const char *str);
+char strcmp(const char *str1, const char *str2);
 
 void *memcpy(void *dst, const void *src, uint8_t size);
 void *memset(void *dst, uint32_t val, uint32_t size);

@@ -1,15 +1,61 @@
 #include <device.h>
+#include <eval.h>
 #include <kernel.h>
+#include <string.h>
 #include <thread.h>
 #include <timer.h>
+
+extern uint32_t EVAL_VOID_START;
+extern uint32_t EVAL_VOID_END;
+
+static char cmdline_buffer[1024];
+
+EVAL_VIOD(help, "display this information")(int argc, char**argv)
+{
+    int cmdline_len;
+    struct eval_void *eval_void_node = (struct eval_void *)&EVAL_VOID_START;
+
+    while (eval_void_node < (struct eval_void *)&EVAL_VOID_END)
+    {
+        cmdline_len = printk("%s", eval_void_node->name);
+        while (cmdline_len < 10)
+        {
+            printk(" ");
+            ++cmdline_len;
+        }
+        printk("- %s\n", eval_void_node->info);
+        ++eval_void_node;
+    }
+}
+
+static void exec_eval_viod(char *cmdline)
+{
+    struct eval_void *eval_void_node = (struct eval_void *)&EVAL_VOID_START;
+
+    while (eval_void_node < (struct eval_void *)&EVAL_VOID_END)
+    {
+        if (!strcmp(eval_void_node->name, cmdline))
+        {
+            eval_void_node->handler();
+            return;
+        }
+        ++eval_void_node;
+    }
+
+    printk("`%s' is not defined\n", cmdline);
+}
 
 void eval()
 {
     char ch;
+    int i;
+
+    printk("\n");
 
     for (;;)
     {
-        printk("\neval > ");
+        printk("eval > ");
+        i = 0;
 
         for (;;)
         {
@@ -20,7 +66,19 @@ void eval()
                 break;
             }
 
-            printk("%c", ch);
+            if (ch >= ' ' && ch <= '~')
+            {
+                printk("%c", ch);
+                cmdline_buffer[i++] = ch;
+                cmdline_buffer[i] = '\0';
+            }
+        }
+
+        printk("\n");
+
+        if (i > 0)
+        {
+            exec_eval_viod((char *)cmdline_buffer);
         }
     }
 }
