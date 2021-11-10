@@ -32,6 +32,7 @@ void put_pixel_fast(int32_t x, int32_t y, uint32_t color);
 void put_pixel(int32_t x, int32_t y, uint8_t r, uint8_t g, uint8_t b);
 void send_pixel(int32_t x1, int32_t y1, int32_t x2, int32_t y2);
 void set_color(uint32_t color, uint32_t background);
+void set_color_invert();
 
 void put_char(uint8_t n, int32_t x, int32_t y);
 void put_line(int x1, int y1, int x2, int y2);

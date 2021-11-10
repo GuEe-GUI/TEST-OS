@@ -78,6 +78,21 @@ void set_color(uint32_t color, uint32_t background)
     return;
 }
 
+void set_color_invert()
+{
+    colors[2] ^= colors[5];
+    colors[5] ^= colors[2];
+    colors[2] ^= colors[5];
+
+    colors[1] ^= colors[4];
+    colors[4] ^= colors[1];
+    colors[1] ^= colors[4];
+
+    colors[0] ^= colors[3];
+    colors[3] ^= colors[0];
+    colors[0] ^= colors[3];
+}
+
 void put_char(uint8_t n, int32_t x, int32_t y)
 {
     int start_x = x, start_y = y;
@@ -87,9 +102,9 @@ void put_char(uint8_t n, int32_t x, int32_t y)
 
     for (; start_y < end_y; ++start_y, ++line)
     {
-        for (; start_x <= end_x; ++start_x)
+        for (; start_x < end_x; ++start_x)
         {
-            if ((font[line] >> (end_x - start_x) & 1))
+            if (((font[line] >> (end_x - start_x - 1)) & 1))
             {
                 put_pixel(start_x, start_y, colors[0], colors[1], colors[2]);
             }

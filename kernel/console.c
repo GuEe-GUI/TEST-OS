@@ -60,9 +60,27 @@ void init_console(uint32_t width, uint32_t height)
         }
     }
 
-    printk("\n\nTESTOS [Version %s]\n(C) %s %s. %s License.\n\n", OS_VERSION, OS_OWNER_YEAR, OS_OWNER_NAME, OS_LICENSE);
+    printk("\nTESTOS [Version %s]\n(C) %s %s. %s License.\n\n", OS_VERSION, OS_OWNER_YEAR, OS_OWNER_NAME, OS_LICENSE);
 
     LOG("console width = %dPX, height = %dPX\n", console.width, console.height);
+}
+
+static void console_cur(int flush_old, int flush_new)
+{
+    static uint32_t last_x = 0, last_y = 0;
+
+    if (flush_old)
+    {
+        put_char(' ', last_x, last_y);
+    }
+
+    last_x = console.x;
+    last_y = console.y;
+
+    if (flush_new)
+    {
+        put_char('_', console.x, console.y);
+    }
 }
 
 void console_out(const char *string, uint32_t color, uint32_t background)
@@ -77,30 +95,43 @@ void console_out(const char *string, uint32_t color, uint32_t background)
         switch (*string)
         {
         case '\n':
+            console_cur(1, 0);
             console_roll();
         break;
         case '\t':
             console.x += (4 - (console.x / FONT_W) % 4) * FONT_W;
             if (console.x >= console.max_x)
             {
+                console_cur(1, 0);
                 console_roll();
+            }
+            else
+            {
+                console_cur(0, 1);
             }
         break;
         case '\b':
             if (console.x != 0)
             {
                 console.x -= FONT_W;
+                console_cur(1, 1);
             }
         break;
         case '\r':
             console.x = 0;
+            console_cur(1, 1);
         break;
         default:
             put_char(*string, console.x, console.y);
             console.x += FONT_W;
             if (console.x >= console.max_x)
             {
+                console_cur(1, 0);
                 console_roll();
+            }
+            else
+            {
+                console_cur(0, 1);
             }
         break;
         }
