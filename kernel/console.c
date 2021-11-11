@@ -79,7 +79,9 @@ static void console_cur(int flush_old, int flush_new)
 
     if (flush_new)
     {
-        put_char('_', console.x, console.y);
+        set_color_invert();
+        put_char(' ', console.x, console.y);
+        set_color_invert();
     }
 }
 
@@ -126,8 +128,8 @@ void console_out(const char *string, uint32_t color, uint32_t background)
             console.x += FONT_W;
             if (console.x >= console.max_x)
             {
-                console_cur(1, 0);
                 console_roll();
+                console_cur(0, 1);
             }
             else
             {

@@ -51,19 +51,17 @@ void *bitmap_malloc(size_t size)
     found = 0;
     ret = NULL;
     /* 获取当前bitmap内存指针 */
-    i = bitmap.map_len - (bitmap.bits_end - bitmap.bits_ptr) / (8 * 4 * KB) - 1;
+    i = bitmap.map_len - ((uint32_t)bitmap.bits_end - (uint32_t)bitmap.bits_ptr) / (8 * 4 * KB) - 1;
     /* 作为i的限制 */
     len = bitmap.map_len;
 
 found_prev:
     for (; i < len; ++i)
     {
-        uint32_t _32KB_info = bitmap.map[i];
-
         /* 查找每个byte中的位 */
         for (j = 0; j < 8; ++j)
         {
-            if (((_32KB_info >> j) & 1) == 0)
+            if (((bitmap.map[i] >> j) & 1) == 0)
             {
                 /* 如果找到+1 */
                 found++;
@@ -75,11 +73,23 @@ found_prev:
             }
             if (found == size)
             {
-                ret = (void *)(((uint32_t)(bitmap.bits_ptr + i)) + j * (4 * KB));
+                ret = (void *)((uint32_t)bitmap.bits_start + (i * 8 + j) * (4 * KB));
                 /* 标记内存大小（内存至少分配4KB，用1byte记录内存大小影响不大） */
                 *ret++ = (uint8_t)size;
                 /* 地址+1返回 */
                 bitmap.bits_ptr = ret + (4 * KB);
+                /* 标记位图被占用 */
+                while (size > 0)
+                {
+                    bitmap.map[i] |= 1 << j;
+                    --j;
+                    --size;
+                    if (j <= 0)
+                    {
+                        j = 7;
+                        --i;
+                    }
+                }
                 goto end;
             }
         }

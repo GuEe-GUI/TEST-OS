@@ -10,12 +10,12 @@ extern void eval_void_start();
 static char cmdline_buffer[1024];
 static char *cmdline_args[32];
 
-EVAL_VIOD(help, "display this information")(int argc, char**argv)
+EVAL_VOID(help, "display this information")(int argc, char**argv)
 {
     int cmdline_len;
     struct eval_void *node = (struct eval_void *)&eval_void_start;
 
-    while (node != NULL && node->magic == EVAL_VIOD_MAGIC)
+    while (node != NULL && node->magic == EVAL_VOID_MAGIC)
     {
         cmdline_len = printk("%s", node->name);
         while (cmdline_len < 10)
@@ -39,7 +39,11 @@ finsh:
     for (;;)
     {
         i = 0;
-        printk("eval > ");
+
+        set_color(0x1583d7ff, CONSOLE_CLEAR);
+        printk("eval >");
+        set_color(CONSOLE_FILL, CONSOLE_CLEAR);
+        printk(" ");
 
         for (;;)
         {
@@ -92,8 +96,14 @@ finsh:
                 {
                     if (space || argc == 0)
                     {
-
                         cmdline_args[argc++] = &cmdline_buffer[idx];
+                        if (argc >= sizeof(cmdline_args) / sizeof(cmdline_args[0]))
+                        {
+                            set_color(0xf44336ff, CONSOLE_CLEAR);
+                            printk("argc out of range(%d) error\n", sizeof(cmdline_args) / sizeof(cmdline_args[0]));
+                            set_color(CONSOLE_FILL, CONSOLE_CLEAR);
+                            goto finsh;
+                        }
                     }
                     space = 0;
                 }
@@ -101,12 +111,14 @@ finsh:
 
             if (mark)
             {
+                set_color(0xf44336ff, CONSOLE_CLEAR);
                 printk("mark matching error\n");
+                set_color(CONSOLE_FILL, CONSOLE_CLEAR);
                 continue;
             }
             cmdline_args[argc] = NULL;
 
-            while (node != NULL && node->magic == EVAL_VIOD_MAGIC)
+            while (node != NULL && node->magic == EVAL_VOID_MAGIC)
             {
                 if (!strcmp(node->name, cmdline_args[0]))
                 {

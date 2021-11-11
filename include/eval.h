@@ -9,13 +9,13 @@ struct eval_void
     void (*handler)();
 } __attribute__((packed));
 
-#define EVAL_VIOD_MAGIC 0xfaceface
+#define EVAL_VOID_MAGIC 0xfaceface
 
-#define EVAL_VIOD(handler, info) \
+#define EVAL_VOID(handler, info) \
 void handler(int argc, char**argv);\
 const struct eval_void eval_void_##handler __attribute__((used,section(".eval_void"))) = \
 { \
-    EVAL_VIOD_MAGIC, \
+    EVAL_VOID_MAGIC, \
     #handler, \
     info, \
 handler}; \

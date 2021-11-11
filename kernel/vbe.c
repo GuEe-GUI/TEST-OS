@@ -256,7 +256,7 @@ void put_circle(int x, int y, int radius)
 
     for (set_x = x; set_x <= range_x; ++set_x)
     {
-        for (; radius * radius < range_y * range_y + (set_x - x)*(set_x - x); --range_y);
+        for (; radius * radius < range_y * range_y + (set_x - x) * (set_x - x); --range_y);
         for (set_y = range_y + y; set_y >= y; --set_y)
         {
             put_pixel(x_tmp - set_x, y_tmp - set_y, colors[0], colors[1], colors[2]);
