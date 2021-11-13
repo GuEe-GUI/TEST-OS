@@ -8,23 +8,21 @@ static struct bitmap bitmap;
 
 void init_bitmap(uint32_t bytes_len)
 {
+    /* 内核预留内存 */
     bytes_len -= KERNEL_HEAP_BOTTOM - KERNEL_MAP_BASE_VADDR;
-    bitmap.bits_start = (uint8_t *)KERNEL_HEAP_BOTTOM;
-
     /*
      * 根据bytes_len分配一定的位图，每一位对应4KB
      * 则解方程：
-     *      y = map_len, size_info或used_info占用总空间（byte）
+     *      y = bitmap.map占用总空间（byte）
      *      x = bytes_len，堆起点后可使用的内存（byte）
      * =>   y * 8 * 4KB = x - y
-     * =>   y = x / (8 * 4KB)
+     * =>   y = x / (8 * 4KB + 1)
      */
-    bitmap.map_len = bytes_len / (8 * (4 * KB));
+    bitmap.map_size = bytes_len / (8 * (4 * KB) + 1);
+    bytes_len -= bitmap.map_size;
+    bitmap.bits_start = KERNEL_HEAP_BOTTOM + bitmap.map_size;
 
-    bitmap.map = bitmap.bits_start;
-    bitmap.bits_start += bitmap.map_len;
-
-    bytes_len -= bitmap.map_len;
+    bitmap.map = (uint8_t *)bitmap.bits_start;
     bitmap.bits_ptr = bitmap.bits_start;
     bitmap.bits_end = bitmap.bits_start + bytes_len;
 
@@ -51,9 +49,9 @@ void *bitmap_malloc(size_t size)
     found = 0;
     ret = NULL;
     /* 获取当前bitmap内存指针 */
-    i = bitmap.map_len - ((uint32_t)bitmap.bits_end - (uint32_t)bitmap.bits_ptr) / (8 * 4 * KB) - 1;
+    i = bitmap.map_size - (bitmap.bits_end - bitmap.bits_ptr) / (8 * 4 * KB) - 1;
     /* 作为i的限制 */
-    len = bitmap.map_len;
+    len = bitmap.map_size;
 
 found_prev:
     for (; i < len; ++i)
@@ -73,11 +71,11 @@ found_prev:
             }
             if (found == size)
             {
-                ret = (void *)((uint32_t)bitmap.bits_start + (i * 8 + j) * (4 * KB));
+                ret = (void *)(bitmap.bits_start + (i * 8 + j) * (4 * KB));
                 /* 标记内存大小（内存至少分配4KB，用1byte记录内存大小影响不大） */
                 *ret++ = (uint8_t)size;
                 /* 地址+1返回 */
-                bitmap.bits_ptr = ret + (4 * KB);
+                bitmap.bits_ptr = (uint32_t)ret + (4 * KB);
                 /* 标记位图被占用 */
                 while (size > 0)
                 {
@@ -97,9 +95,9 @@ found_prev:
 
 end:
     /* 如果查找失败就重头查找 */
-    if (ret == NULL && len == bitmap.map_len)
+    if (ret == NULL && len == bitmap.map_size)
     {
-        len = bitmap.map_len - (bitmap.bits_end - bitmap.bits_ptr) / (8 * 4 * KB) - 1;
+        len = bitmap.map_size - (bitmap.bits_end - bitmap.bits_ptr) / (8 * 4 * KB) - 1;
         i = 0;
         bitmap.bits_ptr = bitmap.bits_start;
 
@@ -121,11 +119,11 @@ void bitmap_free(void *addr)
 
     size = *((uint8_t *)addr - 1);
     /* 在bitmap哪个地址 */
-    i = bitmap.map_len - (bitmap.bits_end - (uint8_t *)addr) / (8 * 4 * KB) - 1;
+    i = bitmap.map_size - (bitmap.bits_end - (uint32_t)addr) / (8 * 4 * KB) - 1;
     /* 在该地址哪个bit */
-    j = (uint8_t *)addr - (bitmap.bits_start + i * 8 * 4 * KB);
+    j = (uint32_t)addr - (bitmap.bits_start + i * 8 * 4 * KB);
 
-    for (; i < bitmap.map_len; ++i)
+    for (; i < bitmap.map_size; ++i)
     {
         for (; j < 8; ++j)
         {

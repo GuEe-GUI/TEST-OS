@@ -1,4 +1,4 @@
-KERNEL_STACK_TOP equ 0x80001000
+KERNEL_STACK_TOP equ 0x80002000
 
 [section .text]
 [bits 32]

@@ -3,6 +3,8 @@
 #include <eval.h>
 #include <kernel.h>
 #include <rtc.h>
+#include <thread.h>
+#include <timer.h>
 
 EVAL_VOID(cls, "clear console")(int argc, char**argv)
 {

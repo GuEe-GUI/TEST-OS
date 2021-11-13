@@ -5,81 +5,39 @@
 #include <kernel.h>
 #include <thread.h>
 #include <timer.h>
+#include <eval.h>
 
-void printA()
+void print_char(void *param)
 {
+    char ch = (char)(uint32_t)((char **)param)[0];
+    uint32_t color = (uint32_t)((char **)param)[1];
+
     for (;;)
     {
-        set_color(0xff0000ff, CONSOLE_CLEAR);
-        printk("A ");
+        set_color(color, CONSOLE_CLEAR);
+        printk("%c ", ch);
         set_color(CONSOLE_FILL, CONSOLE_CLEAR);
         delay(100);
     }
 }
 
-void printB()
+EVAL_VOID(thread_demo, "thread demo")(int argc, char**argv)
 {
-    for (;;)
-    {
-        set_color(0x00ff00ff, CONSOLE_CLEAR);
-        printk("B ");
-        set_color(CONSOLE_FILL, CONSOLE_CLEAR);
-        delay(100);
-    }
-}
+    tid_t tid[5];
 
-void printC()
-{
-    for (;;)
-    {
-        set_color(0x0000ffff, CONSOLE_CLEAR);
-        printk("C ");
-        set_color(CONSOLE_FILL, CONSOLE_CLEAR);
-        delay(100);
-    }
-}
+    thread_create(&tid[0], print_char, (char *[]){(char *)'A', (char *)0xff0000ff});
+    thread_create(&tid[1], print_char, (char *[]){(char *)'B', (char *)0x00ff00ff});
+    thread_create(&tid[2], print_char, (char *[]){(char *)'C', (char *)0x0000ffff});
+    thread_create(&tid[3], print_char, (char *[]){(char *)'D', (char *)0x00ffffff});
+    thread_create(&tid[4], print_char, (char *[]){(char *)'E', (char *)0xffff00ff});
 
-void printD()
-{
-    for (;;)
-    {
-        set_color(0x00ffffff, CONSOLE_CLEAR);
-        printk("D ");
-        set_color(CONSOLE_FILL, CONSOLE_CLEAR);
-        delay(100);
-    }
-}
-
-void printE()
-{
-    for (;;)
-    {
-        set_color(0xffff00ff, CONSOLE_CLEAR);
-        printk("E ");
-        set_color(CONSOLE_FILL, CONSOLE_CLEAR);
-        delay(100);
-    }
-}
-
-int main()
-{
-    tid_t tida, tidb, tidc, tidd, tide;
-
-    thread_create(&tida, printA, NULL);
-    thread_create(&tidb, printB, NULL);
-    thread_create(&tidc, printC, NULL);
-    thread_create(&tidd, printD, NULL);
-    thread_create(&tide, printE, NULL);
-
-    thread_setup(tide);
-    thread_setup(tidd);
-    thread_setup(tidc);
-    thread_setup(tidb);
-    thread_setup(tida);
+    thread_wake(tid[4]);
+    thread_wake(tid[3]);
+    thread_wake(tid[2]);
+    thread_wake(tid[1]);
+    thread_wake(tid[0]);
 
     while (1);
-
-    return 0;
 }
 ```
 

@@ -21,6 +21,10 @@ const struct eval_void eval_void_##handler __attribute__((used,section(".eval_vo
 handler}; \
 void handler
 
+#define EVAL_COLOR_INFO  0x1583d7ff
+#define EVAL_COLOR_WARN  0xffc107ff
+#define EVAL_COLOR_ERROR 0xf44336ff
+
 void eval();
 
 #endif

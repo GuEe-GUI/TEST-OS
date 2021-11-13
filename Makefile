@@ -50,7 +50,7 @@ OBJS = \
 
 OBJS := $(addprefix $(BUILD_DIR)/,${OBJS})
 
-all: $(TEST_OS_IMG) run
+all: $(shell mkdir -p $(BUILD_DIR)) $(TEST_OS_IMG) run
 
 $(TEST_OS_IMG): $(BOOT_BIN) $(LOADER_BIN) $(KERNEL_FILE)
 	qemu-img create $(TEST_OS_IMG) 1440K
@@ -59,7 +59,7 @@ $(TEST_OS_IMG): $(BOOT_BIN) $(LOADER_BIN) $(KERNEL_FILE)
 	dd if=$(KERNEL_FILE) of=$(TEST_OS_IMG) bs=512 seek=$(KERNEL_SECTOR_OFFEST) count=$(KERNEL_SECTORS) conv=notrunc
 
 run: $(TEST_OS_IMG)
-	qemu-system-i386 -name "TEST OS" -m 256 -rtc base=localtime -boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy
+	qemu-system-i386 -name "TEST OS" -m 128 -rtc base=localtime -boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy
 
 clean:
 	mkdir -p $(BUILD_DIR)
@@ -70,7 +70,7 @@ $(BUILD_DIR)/%.bin: boot/%.asm
 	$(AS) -o $@ $<
 
 $(KERNEL_FILE): $(OBJS)
-	$(LD) $(LD_FLAGS) -o $(KERNEL_FILE) $(OBJS)
+	$(LD) $(LD_FLAGS) -o $(KERNEL_FILE) $^
 
 $(BUILD_DIR)/%.o: */%.asm
 	$(AS) $(ASM_KERNEL_FLAGS) -o $@ $<

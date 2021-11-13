@@ -16,7 +16,8 @@ static inline void init_ards()
     for (; number >= 0; --number)
     {
         /* 判断类型是否是可以被操作系统使用（address_range_memory）*/
-        if (ards->type == 1) {
+        if (ards->type == 1)
+        {
             sum = ards->base_addr_low + ards->length_low;
             /* 获取最大内存量 */
             if (sum > total_memory_bytes)
@@ -31,8 +32,6 @@ static inline void init_ards()
 
     LOG("ards number = %d\n", ards_number);
     LOG("device total memory = %dMB\n", total_memory_bytes / (1 * MB));
-
-    return;
 }
 
 static inline void memory_remap()
@@ -43,43 +42,36 @@ static inline void memory_remap()
     uint32_t map_paddr;
     uint32_t dir_limit;
 
-    uint32_t dir_paddr = KERNEL_PAGE_DIR_PADDR;
-    uint32_t tbl1_paddr = KERNEL_PAGE_TBL1_PADDR;
+    uint32_t *dir_paddr = (void *)KERNEL_PAGE_DIR_PADDR;
+    uint32_t *tbl_paddr = (void *)KERNEL_VA_PAGE_PADDR;
 
     cli();
 
-    /* 内核只需要最多1G内存空间，内核启动时已经映射了4M，则新映射的内存区域 > 4M, < total_memory_bytes */
-    if (total_memory_bytes > 1 * GB)
+    /* 从内核只需要最多大约1G内存空间，映射的内存区域[0 ~ KERNEL_PAGE_MAP_MAX] */
+    if (total_memory_bytes > KERNEL_PAGE_MAP_MAX)
     {
-        total_memory_bytes = 1 * GB;
+        total_memory_bytes = KERNEL_PAGE_MAP_MAX;
     }
 
-    /* 继续映射高地址后面的地址 */
-    map_vaddr = KERNEL_MAP_BASE_VADDR + 4 * MB;
-    /* 从物理地址0x00000000开始映射到高地址，+4M 继续往后映射 */
-    map_paddr = (0x00000000 + 4 * MB) | KERNEL_PAGE_ATTR;
-    /* 页目录总共4k，可映射4G内存，则 / 4M，内核设定了限制，因此向上取整 */
-    dir_limit = (total_memory_bytes - 4 * MB) / (4 * MB) + 1;
+    /* 从物理地址0x00000000开始映射 */
+    map_paddr = 0x00000000;
+    map_vaddr = KERNEL_MAP_BASE_VADDR;
+    /* 页目录总共4k，可映射4G内存，则 / 4M */
+    dir_limit = total_memory_bytes / (4 * MB);
 
     for (i = 0; i < dir_limit; ++i)
     {
-        /*
-         * 一个页目录4k，对应地址4G
-         * 0x80000000 >> 22 = 512, 512 * 4 = 2048 => 4G / 2
-         */
-        uint32_t map_off = (map_vaddr >> 22) * 4;
+        /* 页目录[31:22]，设置当前基地址对应的页表项 */
+        dir_paddr[map_vaddr >> 22] = (uint32_t)tbl_paddr | KERNEL_PAGE_ATTR;
 
-        /* 设置当前基地址对应的页表项 */
-        *(uint32_t *)(dir_paddr + map_off) = tbl1_paddr | KERNEL_PAGE_ATTR;
-
-        /* 填写每个页表项，每个1K（10bits） */
-        for (j = 0; j < 1 * KB; ++j)
+        /* 填写每个页表项，1024（4KB / sizeof(void*)）个entry */
+        for (j = 0; j < 1024; ++j)
         {
-            /* 每个页表映射4K（12bits）物理地址 */
-            *(uint32_t *)tbl1_paddr = map_paddr | KERNEL_PAGE_ATTR;
+            /* 页表[21:12]映射4K物理地址 */
+            tbl_paddr[(map_vaddr >> 12) & 0x3ff] = map_paddr | KERNEL_PAGE_ATTR;
             map_paddr += PAGE_SIZE;
-            tbl1_paddr += sizeof(uint32_t);
         }
+        tbl_paddr += 1024;
 
         /* 准备映射下一个4M的地址 */
         map_vaddr += 4 * MB;

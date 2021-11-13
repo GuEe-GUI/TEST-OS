@@ -13,7 +13,6 @@ static void init_idt_descriptor(uint16_t segment_selector, uint32_t offset, uint
     idt->segment_selector = segment_selector;
     idt->type.all = type;
     idt->offset16_31 = (offset & 0xffff0000) >> 16;
-    return;
 }
 
 void register_interrupt(uint8_t number, interrupt_handler handler)
@@ -26,7 +25,6 @@ void register_interrupt(uint8_t number, interrupt_handler handler)
     io_out8(port, value);
 
     sti();
-    return;
 }
 
 void isr_handler(struct registers *registers)

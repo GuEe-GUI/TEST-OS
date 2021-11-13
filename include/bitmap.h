@@ -6,11 +6,11 @@
 struct bitmap
 {
     uint8_t *map;
-    uint8_t *bits_ptr;
-    uint8_t *bits_start;
-    uint8_t *bits_end;
+    uint32_t map_size;
 
-    uint32_t map_len;
+    uint32_t bits_ptr;
+    uint32_t bits_start;
+    uint32_t bits_end;
 };
 
 void init_bitmap(uint32_t bytes_len);

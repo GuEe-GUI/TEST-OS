@@ -4,9 +4,12 @@
 #include <types.h>
 
 #define KERNEL_MAP_BASE_VADDR   0x80000000
-#define KERNEL_ENTRY_BASE_VADDR (KERNEL_MAP_BASE_VADDR + 0x100000)
+#define KERNEL_MAP_BASE_PADDR   0x200000
+#define KERNEL_ENTRY_BASE_VADDR (KERNEL_MAP_BASE_VADDR + KERNEL_MAP_BASE_PADDR)
 
-#define KERNEL_STACK_TOP        0x80001000
+/* 0x500 是BIOS ROM */
+#define KERNEL_STACK_SIZE       (4 * KB + (0x1000 - 0x500))
+#define KERNEL_STACK_TOP        0x80002000
 
 /* 内核小于1MB，其他内存设置在内核起点1MB后 */
 #define KERNEL_USING_SIZE       (1 * MB)
@@ -14,10 +17,8 @@
 /* 预留8M给内核使用，其他用于堆 */
 #define KERNEL_HEAP_BOTTOM      KERNEL_USING_BASE
 
-#define KERNEL_PAGE_DIR_PADDR   0x1000
-#define KERNEL_PAGE_TBL0_PADDR  0x2000
-#define VIDEO_PAGE_TABLE_PADDR  0x3000
-#define KERNEL_PAGE_TBL1_PADDR  0x4000
+#define PAGE_SHIFT              12
+#define PAGE_SIZE               (1U << PAGE_SHIFT)
 
 #define PAGE_ATTR_NOT_PRESENT   0   /* 0000 不存在内存上 */
 #define PAGE_ATTR_PRESENT       1   /* 0001 存在内存上 */
@@ -28,11 +29,15 @@
 
 #define KERNEL_PAGE_ATTR        (PAGE_ATTR_PRESENT | PAGE_ATTR_WRITE | PAGE_ATTR_SYSTEM)
 
-#define PAGE_SHIFT              12
-#define PAGE_SIZE               (1U << PAGE_SHIFT)
+#define KERNEL_PAGE_DIR_PADDR   0x3000
+#define KERNEL_VBE_PAGE_PADDR   0x4000
+#define KERNEL_PA_PAGE_PADDR    0x5000
+#define KERNEL_VA_PAGE_PADDR    0x6000
 
-#define ARDS_N_ADDRESS          (KERNEL_MAP_BASE_VADDR + 0x5010)    /* ARDS的数量 */
-#define ARDS_ADDRESS            (KERNEL_MAP_BASE_VADDR + 0x5050)    /* ARDS数据结构的内存地址 */
+#define KERNEL_PAGE_MAP_MAX     ((KERNEL_MAP_BASE_PADDR - KERNEL_VA_PAGE_PADDR) * PAGE_SIZE / sizeof(void *))
+
+#define ARDS_N_ADDRESS          (KERNEL_MAP_BASE_VADDR + 0x7010)    /* ARDS的数量 */
+#define ARDS_ADDRESS            (KERNEL_MAP_BASE_VADDR + 0x7050)    /* ARDS数据结构的内存地址 */
 
 struct ards
 {

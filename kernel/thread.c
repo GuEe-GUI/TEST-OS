@@ -11,6 +11,27 @@ static tid_t tid_bitmap[KERNEL_THREAD_MAX / (sizeof(tid_t) * 8)] = {1}; /* 0号t
 
 extern void switch_to_next_thread(void *prev, void *next);
 
+static int thread_find_by_tid(tid_t tid, enum THREAD_STATUS status, struct thread** prev, struct thread **node)
+{
+    int result = -1;
+
+    *prev = NULL;
+    *node = thread_head[status];
+
+    while (*node != NULL)
+    {
+        if ((*node)->tid == tid)
+        {
+            result = 0;
+            break;
+        }
+        *prev = *node;
+        *node = (*node)->next;
+    }
+
+    return result;
+}
+
 static void __attribute__((noreturn)) thread_died()
 {
     cli();
@@ -38,7 +59,7 @@ void __attribute__((noreturn)) start_thread(void *handler)
     thread_head[THREAD_READY]->handler = &&thread_cleaner;
     thread_head[THREAD_READY]->params = NULL;
 
-    thread_setup(thread_head[THREAD_READY]->tid);
+    thread_wake(thread_head[THREAD_READY]->tid);
     LOG("thread cleaner handler = %p, tid = %d\n", thread_head[THREAD_RUNNING]->handler, thread_head[THREAD_RUNNING]->tid);
 
     if (thread_create(&tid, handler, NULL))
@@ -46,7 +67,7 @@ void __attribute__((noreturn)) start_thread(void *handler)
         PANIC("create first thread fail\n");
     }
 
-    thread_setup(tid);
+    thread_wake(tid);
     LOG("first thread handler = %p, tid = %d\n", thread_head[THREAD_RUNNING]->handler, thread_head[THREAD_RUNNING]->tid);
 
     cli();
@@ -61,14 +82,30 @@ thread_cleaner:
 
     for (;;)
     {
-        struct thread *next;
+        struct thread *prev = NULL;
         struct thread *node = thread_head[THREAD_DIED];
 
         while (node != NULL)
         {
-            next = node->next;
-            free(node);
-            node = next;
+            if (node->ref == 0)
+            {
+                cli();
+
+                if (prev != NULL)
+                {
+                    prev->next = node->next;
+                }
+                else
+                {
+                    /* node节点为thread_head[THREAD_DIED] */
+                    thread_head[THREAD_DIED] = node->next;
+                }
+                free(node);
+
+                sti();
+            }
+            prev = node;
+            node = node->next;
         }
     }
 }
@@ -119,9 +156,11 @@ int thread_create(tid_t *tid, void *handler, void *params)
                     *tid = map_idx * (sizeof(tid_t) * 8) + bit_idx;
                     new_thread->tid = *tid;
                     new_thread->status = THREAD_READY;
+                    new_thread->ref = 0;
                     new_thread->handler = handler;
                     new_thread->params = params;
                     new_thread->ret = thread_died;
+                    new_thread->context.esp = 0;
 
                     if (thread_head[THREAD_READY] != NULL)
                     {
@@ -145,53 +184,99 @@ finsh:
     return status;
 }
 
-void thread_setup(tid_t tid)
+void thread_wake(tid_t tid)
 {
     struct thread *prev;
     struct thread *node;
 
     cli();
 
-    prev = NULL;
-    node = thread_head[THREAD_READY];
-
-    while (node != NULL)
+    if (!thread_find_by_tid(tid, THREAD_READY, &prev, &node))
     {
-        if (node->tid == tid)
+        if (prev != NULL)
+        {
+            prev->next = node->next;
+        }
+        else
+        {
+            /* 节点为thread_head[THREAD_READY] */
+            thread_head[THREAD_READY] = node->next;
+        }
+        node->status = THREAD_RUNNING;
+        node->next = thread_head[THREAD_RUNNING];
+        thread_head[THREAD_RUNNING] = node;
+
+        if (node->context.esp == 0)
         {
             uint32_t *stack_top;
-
-            if (prev != NULL)
-            {
-                prev->next = node->next;
-            }
-            else
-            {
-                /* 节点为 thread_head[THREAD_READY] */
-                thread_head[THREAD_READY] = node->next;
-            }
-            node->status = THREAD_RUNNING;
-            node->next = thread_head[THREAD_RUNNING];
-            thread_head[THREAD_RUNNING] = node;
-
             stack_top = (uint32_t *)((uint32_t)node + KERNEL_THREAD_STACK_SIZE - sizeof(uint32_t) * 3);
             stack_top[0] = (uint32_t)node->handler;
             stack_top[1] = (uint32_t)node->ret;
             stack_top[2] = (uint32_t)node->params;
 
             node->context.esp = (uint32_t)stack_top;
-
-            break;
         }
-        else if (node->next != NULL)
+    }
+
+    sti();
+}
+
+void thread_suspend(tid_t tid)
+{
+    struct thread *prev;
+    struct thread *node;
+
+    /* thread cleaner不能暂停 */
+    if (tid == 0)
+    {
+        return;
+    }
+
+    cli();
+
+    if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node))
+    {
+        if (prev != NULL)
         {
-            prev = node;
-            node = node->next;
+            prev->next = node->next;
         }
         else
         {
-            break;
+            /* node节点为thread_head[THREAD_RUNNING] */
+            thread_head[THREAD_RUNNING] = node->next;
         }
+        node->status = THREAD_WAITING;
+        node->next = thread_head[THREAD_WAITING];
+        thread_head[THREAD_WAITING] = node;
+    }
+
+    sti();
+}
+
+void thread_wait(tid_t tid)
+{
+    struct thread *node;
+    struct thread *prev;
+
+    /* thread cleaner不能被等待 */
+    if (tid == 0)
+    {
+        return;
+    }
+
+    cli();
+
+    /* 不在THREAD_DIED中搜索，进入THREAD_DIED后ref值不再改变，以防止死锁发生 */
+    if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node) ||
+        !thread_find_by_tid(tid, THREAD_WAITING, &prev, &node))
+    {
+        ++(node->ref);
+
+        sti();
+
+        while (node->status != THREAD_DIED) {}
+
+        --(node->ref);
     }
 
     sti();
@@ -199,46 +284,32 @@ void thread_setup(tid_t tid)
 
 void thread_exit(tid_t tid)
 {
-    if (tid != 0)
+    struct thread *node;
+    struct thread *prev;
+
+    /* thread cleaner不能结束 */
+    if (tid == 0)
     {
-        struct thread *prev;
-        struct thread *node;
-
-        cli();
-
-        prev = NULL;
-        node = thread_head[THREAD_RUNNING];
-
-        while (node != NULL)
-        {
-            if (node->tid == tid)
-            {
-                if (prev != NULL)
-                {
-                    prev->next = node->next;
-                }
-                else
-                {
-                    /* 节点为 is thread_head[THREAD_RUNNING] */
-                    thread_head[THREAD_RUNNING] = node->next;
-                }
-                node->status = THREAD_DIED;
-                node->next = thread_head[THREAD_DIED];
-                thread_head[THREAD_DIED] = node;
-
-                break;
-            }
-            else if (node->next != NULL)
-            {
-                prev = node;
-                node = node->next;
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        sti();
+        return;
     }
+
+    cli();
+
+    if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node))
+    {
+        if (prev != NULL)
+        {
+            prev->next = node->next;
+        }
+        else
+        {
+            /* node节点为thread_head[THREAD_RUNNING] */
+            thread_head[THREAD_RUNNING] = node->next;
+        }
+        node->status = THREAD_DIED;
+        node->next = thread_head[THREAD_DIED];
+        thread_head[THREAD_DIED] = node;
+    }
+
+    sti();
 }

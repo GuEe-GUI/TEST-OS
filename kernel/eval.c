@@ -30,7 +30,7 @@ EVAL_VOID(help, "display this information")(int argc, char**argv)
 
 void eval()
 {
-    char ch;
+    uint8_t ch;
     int i;
 
     printk("Welcome to eval!\n\n");
@@ -40,14 +40,14 @@ finsh:
     {
         i = 0;
 
-        set_color(0x1583d7ff, CONSOLE_CLEAR);
-        printk("eval >");
+        set_color(EVAL_COLOR_INFO, CONSOLE_CLEAR);
+        printk("eval>");
         set_color(CONSOLE_FILL, CONSOLE_CLEAR);
         printk(" ");
 
         for (;;)
         {
-            while ((ch = get_key()) == 0);
+            while ((ch = get_key()) == 0) {}
 
             if (ch >= ' ' && ch <= '~')
             {
@@ -99,7 +99,7 @@ finsh:
                         cmdline_args[argc++] = &cmdline_buffer[idx];
                         if (argc >= sizeof(cmdline_args) / sizeof(cmdline_args[0]))
                         {
-                            set_color(0xf44336ff, CONSOLE_CLEAR);
+                            set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
                             printk("argc out of range(%d) error\n", sizeof(cmdline_args) / sizeof(cmdline_args[0]));
                             set_color(CONSOLE_FILL, CONSOLE_CLEAR);
                             goto finsh;
@@ -111,7 +111,7 @@ finsh:
 
             if (mark)
             {
-                set_color(0xf44336ff, CONSOLE_CLEAR);
+                set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
                 printk("mark matching error\n");
                 set_color(CONSOLE_FILL, CONSOLE_CLEAR);
                 continue;

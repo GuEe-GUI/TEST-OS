@@ -57,26 +57,26 @@ struct registers
     uint32_t user_ss;
 } __attribute__((packed));
 
-extern void isr0(void);
-extern void isr1(void);
-extern void isr2(void);
-extern void isr3(void);
-extern void isr4(void);
-extern void isr5(void);
-extern void isr6(void);
-extern void isr7(void);
-extern void isr8(void);
-extern void isr9(void);
-extern void isr10(void);
-extern void isr11(void);
-extern void isr12(void);
-extern void isr13(void);
-extern void isr14(void);
-extern void isr15(void);
-extern void isr16(void);
-extern void isr17(void);
-extern void isr18(void);
-extern void isr19(void);
+extern void isr0(void);     /* #DE 除 0 异常 */
+extern void isr1(void);     /* #DB 调试异常 */
+extern void isr2(void);     /* NMI */
+extern void isr3(void);     /* BP 断点异常 */
+extern void isr4(void);     /* #OF 溢出 */
+extern void isr5(void);     /* #BR 对数组的引用超出边界 */
+extern void isr6(void);     /* #UD 无效或未定义的操作码 */
+extern void isr7(void);     /* #NM 设备不可用(无数学协处理器) */
+extern void isr8(void);     /* #DF 双重故障(有错误代码) */
+extern void isr9(void);     /* 协处理器跨段操作 */
+extern void isr10(void);    /* #TS 无效TSS(有错误代码) */
+extern void isr11(void);    /* #NP 段不存在(有错误代码) */
+extern void isr12(void);    /* #SS 栈错误(有错误代码) */
+extern void isr13(void);    /* #GP 常规保护(有错误代码) */
+extern void isr14(void);    /* #PF 页故障(有错误代码) */
+extern void isr15(void);    /* CPU 保留 */
+extern void isr16(void);    /* #MF 浮点处理单元错误 */
+extern void isr17(void);    /* #AC 对齐检查 */
+extern void isr18(void);    /* #MC 机器检查 */
+extern void isr19(void);    /* #XM SIMD(单指令多数据)浮点异常 */
 extern void isr20(void);
 extern void isr21(void);
 extern void isr22(void);

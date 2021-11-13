@@ -17,8 +17,6 @@ void init_vbe()
     screen_width      = vbe->width;
     screen_height     = vbe->height;
     screen_length     = vbe->width * PIXEL_BYTE;
-
-    return;
 }
 
 uint32_t get_screen_width()
@@ -29,12 +27,6 @@ uint32_t get_screen_width()
 uint32_t get_screen_height()
 {
     return screen_height;
-}
-
-void put_pixel_fast(int32_t x, int32_t y, uint32_t color)
-{
-    *(uint32_t *)&(vbe->vram[y * screen_length + x * PIXEL_BYTE]) = color;
-    return;
 }
 
 void put_pixel(int32_t x, int32_t y, uint8_t r, uint8_t g, uint8_t b)
@@ -48,7 +40,26 @@ void put_pixel(int32_t x, int32_t y, uint8_t r, uint8_t g, uint8_t b)
     vbe->vram[pos + 0] = b;
     vbe->vram[pos + 1] = g;
     vbe->vram[pos + 2] = r;
-    return;
+}
+
+void put_dword_pixels(int32_t x, int32_t y, int32_t width, int32_t height, uint8_t r, uint8_t g, uint8_t b)
+{
+    struct color_bytes color =
+    {
+#if __BYTE_ORDER__ ==__ORDER_BIG_ENDIAN__
+        {r, g, b}
+#else
+        {b, g, r}
+#endif
+    };
+    struct color_bytes *pixel_start = (struct color_bytes *)&vbe->vram[y * screen_length + x * PIXEL_BYTE];
+    struct color_bytes *pixel_end = (struct color_bytes *)&vbe->vram[(y + height) * screen_length + (x + width) * PIXEL_BYTE];
+
+    while (pixel_start < pixel_end)
+    {
+        *pixel_start = color;
+        ++pixel_start;
+    }
 }
 
 void send_pixel(int32_t x1, int32_t y1, int32_t x2, int32_t y2)
@@ -66,6 +77,20 @@ void send_pixel(int32_t x1, int32_t y1, int32_t x2, int32_t y2)
     vbe->vram[pos2 + 2] = vbe->vram[pos1 + 2];
 }
 
+void send_dword_pixels(int32_t x1, int32_t y1, int32_t width, int32_t height, int32_t x2, int32_t y2)
+{
+    uint32_t *pixel_start = (uint32_t *)&vbe->vram[y1 * screen_length + x1 * PIXEL_BYTE];
+    uint32_t *pixel_end = (uint32_t *)&vbe->vram[(y1 + height) * screen_length + (x1 + width) * PIXEL_BYTE];
+    uint32_t *pixel_target = (uint32_t *)&vbe->vram[y2 * screen_length + x2 * PIXEL_BYTE];
+
+    while (pixel_start < pixel_end)
+    {
+        *pixel_target = *pixel_start;
+        ++pixel_target;
+        ++pixel_start;
+    }
+}
+
 void set_color(uint32_t color, uint32_t background)
 {
     colors[0] = RED(color);
@@ -74,8 +99,6 @@ void set_color(uint32_t color, uint32_t background)
     colors[3] = RED(background);
     colors[4] = GREEN(background);
     colors[5] = BLUE(background);
-
-    return;
 }
 
 void set_color_invert()
@@ -115,8 +138,6 @@ void put_char(uint8_t n, int32_t x, int32_t y)
         }
         start_x -= FONT_W;
     }
-
-    return;
 }
 
 void put_line(int x1, int y1, int x2, int y2)
@@ -212,8 +233,6 @@ void put_line(int x1, int y1, int x2, int y2)
             }
         }
     }
-
-    return;
 }
 
 void put_rect(int x, int y, int width, int height)
@@ -227,8 +246,6 @@ void put_rect(int x, int y, int width, int height)
             put_pixel(set_x, set_y, colors[0], colors[1], colors[2]);
         }
     }
-
-    return;
 }
 
 void put_frame(int x, int y, int width, int height)
@@ -246,8 +263,6 @@ void put_frame(int x, int y, int width, int height)
         put_pixel(x, set_y, colors[0], colors[1], colors[2]);
         put_pixel(width, set_y, colors[0], colors[1], colors[2]);
     }
-
-    return;
 }
 
 void put_circle(int x, int y, int radius)
@@ -265,8 +280,6 @@ void put_circle(int x, int y, int radius)
             put_pixel(        set_x,         set_y, colors[0], colors[1], colors[2]);
         }
     }
-
-    return;
 }
 
 void put_ring(int x, int y, int radius)
@@ -296,6 +309,4 @@ void put_ring(int x, int y, int radius)
             p += ((set_x - set_y) << 1) + 1;
         }
     }
-
-    return;
 }

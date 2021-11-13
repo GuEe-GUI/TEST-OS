@@ -15,6 +15,11 @@ struct vbe_info
     uint8_t  *vram;
 };
 
+struct color_bytes
+{
+    uint8_t byte[PIXEL_BYTE];
+};
+
 #define RED(x)      (((x) >> 24) & 0xff)
 #define GREEN(x)    (((x) >> 16) & 0xff)
 #define BLUE(x)     (((x) >>  8) & 0xff)
@@ -28,9 +33,10 @@ void init_vbe();
 uint32_t get_screen_width();
 uint32_t get_screen_height();
 
-void put_pixel_fast(int32_t x, int32_t y, uint32_t color);
 void put_pixel(int32_t x, int32_t y, uint8_t r, uint8_t g, uint8_t b);
+void put_dword_pixels(int32_t x, int32_t y, int32_t width, int32_t height, uint8_t r, uint8_t g, uint8_t b);
 void send_pixel(int32_t x1, int32_t y1, int32_t x2, int32_t y2);
+void send_dword_pixels(int32_t x1, int32_t y1, int32_t width, int32_t height, int32_t x2, int32_t y2);
 void set_color(uint32_t color, uint32_t background);
 void set_color_invert();
 

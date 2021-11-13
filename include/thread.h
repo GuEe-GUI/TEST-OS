@@ -31,6 +31,7 @@ struct thread
 {
     tid_t tid;
     enum THREAD_STATUS status;
+    uint8_t ref;
 
     void (*handler)(void *params);
     void *params;
@@ -44,7 +45,9 @@ struct thread
 void __attribute__((noreturn)) start_thread(void *handler);
 void thread_schedule();
 int thread_create(tid_t *tid, void *handler, void *params);
-void thread_setup(tid_t tid);
+void thread_wake(tid_t tid);
+void thread_suspend(tid_t tid);
+void thread_wait(tid_t tid);
 void thread_exit(tid_t tid);
 
 #endif

@@ -5,13 +5,13 @@ RES_3                   equ 0x11B           ; VBE 模式: 1280 x 1024 x 24 Bits
 
 VBEMODE                 equ RES_1
 
-DISPLAY_MODE_FLAG       equ 0x500           ; 保存显存信息的物理地址（实模式）
+DISPLAY_MODE_FLAG       equ 0x700           ; 保存显存信息的物理地址（实模式）
 VCOLOR                  equ 0               ; 保存颜色数的偏移
 SCREENX                 equ 2               ; 保存分辨率X的偏移
 SCREENY                 equ 4               ; 保存分辨率Y的偏移
 VRAM                    equ 6               ; 保存显存地址的偏移
 
-ARDS_SAVE_ADDR          equ 0x501           ; 保存ARDS信息的物理地址（实模式）
+ARDS_SAVE_ADDR          equ 0x701           ; 保存ARDS信息的物理地址（实模式）
 ARDS_N                  equ 0               ; 保存ARDS数量的偏移
 ARDS_BUF                equ 4
 
@@ -21,9 +21,10 @@ VIDEO_MEMORY_PROTECT    equ 0xb8000         ; VGA字符显存地址（保护模�
 VIDEO_MEMORY_PAGE       equ 0x800b8000      ; VGA字符显存地址（分页模式）
 FONT_BACKGROUND_COLOR   equ 0x03            ; VGA字符前景和背景
 
-PAGE_DIR_ADDR           equ 0x1000          ; 页表物理地址
-PAGE_TBL_ADDR           equ 0x2000          ; 普通内存页目录物理地址
-VIDEO_PAGE_TBL_ADDR     equ 0x3000          ; 显存页目录物理地址
+PAGE_DIR_ADDR           equ 0x3000          ; 页表物理地址
+VBE_PAGE_ADDR           equ 0x4000          ; 显存页目录物理地址
+PA_PAGE_ADDR            equ 0x5000          ; 物理内存页目录物理地址
+VA_PAGE_ADDR            equ 0x6000          ; 虚拟内存页目录物理地址
 
 KERNEL_START_SECTOR     equ 0x9             ; 存放内核的扇区号
 KERNEL_SECTORS          equ 348             ; 存放内核占用的扇区数量
@@ -333,26 +334,32 @@ START_TO_PAGING_MODE:
 
     mov eax, 0                              ; 映射虚拟地址 0（此处为1：1映射）
     shr eax, 22                             ; Eax >>= 22
-    shl eax, 2                              ; Eax *= 4
-    mov dword [PAGE_DIR_ADDR + eax], PAGE_TBL_ADDR | 0x7
+    shl eax, 2                              ; Eax *= 4（地址字节宽度4字节）
+    mov dword [PAGE_DIR_ADDR + eax], PA_PAGE_ADDR | 0x7
 
-    mov eax, 0x80000000                     ; 映射虚拟地址 0x80000000
-    shr eax, 22                             ; Eax >>= 22
-    shl eax, 2                              ; Eax *= 4
-    mov dword [PAGE_DIR_ADDR + eax], PAGE_TBL_ADDR | 0x7
-
-    mov edi, PAGE_TBL_ADDR
+    mov edi, PA_PAGE_ADDR
     mov esi, 0
     or esi, 0x07
-    mov ecx, 1024
+    mov ecx, 1024                           ; 映射内核物理地址空间
+    call .MAPPING_ADDR
+
+    mov eax, 0x80000000                     ; 映射虚拟地址 0x80000000
+    shr eax, 22
+    shl eax, 2
+    mov dword [PAGE_DIR_ADDR + eax], VA_PAGE_ADDR | 0x7
+
+    mov edi, VA_PAGE_ADDR
+    mov esi, 0
+    or esi, 0x07
+    mov ecx, 1024                           ; 映射内核虚拟地址空间
     call .MAPPING_ADDR
 
     mov eax, [0x70000 + VRAM]               ; 映射显存虚拟地址
-    shr eax, 22                             ; Eax >>= 22
-    shl eax, 2                              ; Eax *= 4
-    mov dword [PAGE_DIR_ADDR + eax], VIDEO_PAGE_TBL_ADDR | 0x07
+    shr eax, 22
+    shl eax, 2
+    mov dword [PAGE_DIR_ADDR + eax], VBE_PAGE_ADDR | 0x07
 
-    mov edi, VIDEO_PAGE_TBL_ADDR
+    mov edi, VBE_PAGE_ADDR
     mov esi, [0x70000 + VRAM]
     or esi, 0x07
     mov ecx, 1024                           ; 映射4M显存

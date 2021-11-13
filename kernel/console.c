@@ -44,6 +44,8 @@ void init_console(uint32_t width, uint32_t height)
 
     console.max_x = (console.width / FONT_W) * FONT_W;
     console.max_y = (console.height / FONT_H) * FONT_H;
+
+    set_color(console.fill, console.clear);
     console_cls();
 
     for (i = 0; i < sizeof(logo) / sizeof(uint32_t); ++i)
@@ -97,8 +99,8 @@ void console_out(const char *string, uint32_t color, uint32_t background)
         switch (*string)
         {
         case '\n':
-            console_cur(1, 0);
             console_roll();
+            console_cur(1, 1);
         break;
         case '\t':
             console.x += (4 - (console.x / FONT_W) % 4) * FONT_W;
@@ -107,10 +109,7 @@ void console_out(const char *string, uint32_t color, uint32_t background)
                 console_cur(1, 0);
                 console_roll();
             }
-            else
-            {
-                console_cur(0, 1);
-            }
+            console_cur(1, 1);
         break;
         case '\b':
             if (console.x != 0)
@@ -128,19 +127,14 @@ void console_out(const char *string, uint32_t color, uint32_t background)
             console.x += FONT_W;
             if (console.x >= console.max_x)
             {
+                console_cur(0, 0);
                 console_roll();
-                console_cur(0, 1);
             }
-            else
-            {
-                console_cur(0, 1);
-            }
+            console_cur(0, 1);
         break;
         }
         string++;
     }
-
-    return;
 }
 
 void console_roll(void)
@@ -150,45 +144,16 @@ void console_roll(void)
 
     if (console.y >= console.max_y)
     {
-        int x, y1, y2;
-
-        for (y1 = FONT_H; y1 < console.max_y; ++y1)
-        {
-            for (x = 0, y2 = y1 - FONT_H; x < console.max_x; ++x)
-            {
-                send_pixel(x, y1, x, y2);
-            }
-        }
-
-        y1 -= FONT_H;
-
-        for (; y1 < console.max_y; ++y1)
-        {
-            for (x = 0; x < console.max_x; ++x)
-            {
-                put_pixel(x, y1, RED(console.clear), GREEN(console.clear), BLUE(console.clear));
-            }
-        }
+        console_cur(1, 0);
+        send_dword_pixels(0, FONT_H, console.max_x, console.max_y, 0, 0);
+        put_dword_pixels(0, console.max_y - FONT_H, console.max_x, FONT_H, RED(console.clear), GREEN(console.clear), BLUE(console.clear));
 
         console.y -= FONT_H;
     }
-    return;
 }
 
 void console_cls(void)
 {
-    int x, y;
-
-    for (y = 0; y < console.height; ++y)
-    {
-        for (x = 0; x < console.width; ++x)
-        {
-            put_pixel(x, y, RED(console.clear), GREEN(console.clear), BLUE(console.clear));
-        }
-    }
-
-    set_color(console.fill, console.clear);
+    put_dword_pixels(0, 0, console.width, console.height, RED(console.clear), GREEN(console.clear), BLUE(console.clear));
     console.x = console.y = 0;
-
-    return;
 }
