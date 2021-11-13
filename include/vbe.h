@@ -18,7 +18,7 @@ struct vbe_info
 struct color_bytes
 {
     uint8_t byte[PIXEL_BYTE];
-};
+} __attribute__((packed));
 
 #define RED(x)      (((x) >> 24) & 0xff)
 #define GREEN(x)    (((x) >> 16) & 0xff)
