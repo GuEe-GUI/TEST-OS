@@ -28,4 +28,6 @@ typedef unsigned long  size_t;
 #define MB (1024 * KB)
 #define GB (1024 * MB)
 
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
 #endif

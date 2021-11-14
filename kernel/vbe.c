@@ -3,20 +3,20 @@
 
 static uint32_t screen_width;
 static uint32_t screen_height;
-static struct vbe_info *vbe;
+static struct vbe_info vbe;
 static uint32_t screen_length;
 static uint8_t colors[6] = {0};
 
 void init_vbe()
 {
-    vbe->color_number = *((uint16_t *)VBE_ADDR);
-    vbe->width        =  (uint32_t)(*((uint16_t *)(VBE_ADDR + 2)));
-    vbe->height       =  (uint32_t)(*((uint16_t *)(VBE_ADDR + 4)));
-    vbe->vram         =  (uint8_t *)(*((uint32_t *)(VBE_ADDR + 6)));
+    vbe.color_number = *((uint16_t *)VBE_ADDR);
+    vbe.width        =  (uint32_t)(*((uint16_t *)(VBE_ADDR + 2)));
+    vbe.height       =  (uint32_t)(*((uint16_t *)(VBE_ADDR + 4)));
+    vbe.vram         =  (uint8_t *)(*((uint32_t *)(VBE_ADDR + 6)));
 
-    screen_width      = vbe->width;
-    screen_height     = vbe->height;
-    screen_length     = vbe->width * PIXEL_BYTE;
+    screen_width     = vbe.width;
+    screen_height    = vbe.height;
+    screen_length    = vbe.width * PIXEL_BYTE;
 }
 
 uint32_t get_screen_width()
@@ -31,15 +31,15 @@ uint32_t get_screen_height()
 
 void put_pixel(int32_t x, int32_t y, uint8_t r, uint8_t g, uint8_t b)
 {
-    if (x >= vbe->width || y >= vbe->height)
+    if (x >= vbe.width || y >= vbe.height)
     {
         return;
     }
 
     int pos = y * screen_length + x * PIXEL_BYTE;
-    vbe->vram[pos + 0] = b;
-    vbe->vram[pos + 1] = g;
-    vbe->vram[pos + 2] = r;
+    vbe.vram[pos + 0] = b;
+    vbe.vram[pos + 1] = g;
+    vbe.vram[pos + 2] = r;
 }
 
 void put_dword_pixels(int32_t x, int32_t y, int32_t width, int32_t height, uint8_t r, uint8_t g, uint8_t b)
@@ -52,8 +52,8 @@ void put_dword_pixels(int32_t x, int32_t y, int32_t width, int32_t height, uint8
         {b, g, r}
 #endif
     };
-    struct color_bytes *pixel_start = (struct color_bytes *)&vbe->vram[y * screen_length + x * PIXEL_BYTE];
-    struct color_bytes *pixel_end = (struct color_bytes *)&vbe->vram[(y + height) * screen_length + (x + width) * PIXEL_BYTE];
+    struct color_bytes *pixel_start = (struct color_bytes *)&vbe.vram[y * screen_length + x * PIXEL_BYTE];
+    struct color_bytes *pixel_end = (struct color_bytes *)&vbe.vram[(y + height) * screen_length + (x + width) * PIXEL_BYTE];
 
     while (pixel_start < pixel_end)
     {
@@ -64,24 +64,24 @@ void put_dword_pixels(int32_t x, int32_t y, int32_t width, int32_t height, uint8
 
 void send_pixel(int32_t x1, int32_t y1, int32_t x2, int32_t y2)
 {
-    if ((x1 >= vbe->width || y1 >= vbe->height) ||
-        (x2 >= vbe->width || y2 >= vbe->height))
+    if ((x1 >= vbe.width || y1 >= vbe.height) ||
+        (x2 >= vbe.width || y2 >= vbe.height))
     {
         return;
     }
 
     int pos1 = y1 * screen_length + x1 * PIXEL_BYTE;
     int pos2 = y2 * screen_length + x2 * PIXEL_BYTE;
-    vbe->vram[pos2 + 0] = vbe->vram[pos1 + 0];
-    vbe->vram[pos2 + 1] = vbe->vram[pos1 + 1];
-    vbe->vram[pos2 + 2] = vbe->vram[pos1 + 2];
+    vbe.vram[pos2 + 0] = vbe.vram[pos1 + 0];
+    vbe.vram[pos2 + 1] = vbe.vram[pos1 + 1];
+    vbe.vram[pos2 + 2] = vbe.vram[pos1 + 2];
 }
 
 void send_dword_pixels(int32_t x1, int32_t y1, int32_t width, int32_t height, int32_t x2, int32_t y2)
 {
-    uint32_t *pixel_start = (uint32_t *)&vbe->vram[y1 * screen_length + x1 * PIXEL_BYTE];
-    uint32_t *pixel_end = (uint32_t *)&vbe->vram[(y1 + height) * screen_length + (x1 + width) * PIXEL_BYTE];
-    uint32_t *pixel_target = (uint32_t *)&vbe->vram[y2 * screen_length + x2 * PIXEL_BYTE];
+    uint32_t *pixel_start = (uint32_t *)&vbe.vram[y1 * screen_length + x1 * PIXEL_BYTE];
+    uint32_t *pixel_end = (uint32_t *)&vbe.vram[(y1 + height) * screen_length + (x1 + width) * PIXEL_BYTE];
+    uint32_t *pixel_target = (uint32_t *)&vbe.vram[y2 * screen_length + x2 * PIXEL_BYTE];
 
     while (pixel_start < pixel_end)
     {

@@ -62,8 +62,7 @@ run: $(TEST_OS_IMG)
 	qemu-system-i386 -name "TEST OS" -m 128 -rtc base=localtime -boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy
 
 clean:
-	mkdir -p $(BUILD_DIR)
-	rm -f $(BUILD_DIR)/*
+	rm -rf $(BUILD_DIR)
 	rm -f *.img
 
 $(BUILD_DIR)/%.bin: boot/%.asm

@@ -9,7 +9,8 @@ static struct
     uint32_t max_x, max_y;
     uint32_t width, height;
     uint32_t fill, clear;
-} console = {
+} console =
+{
     .x = 0,
     .y = 0,
     .fill = CONSOLE_FILL,
@@ -108,6 +109,18 @@ void console_out(const char *string, uint32_t color, uint32_t background)
             {
                 console_cur(1, 0);
                 console_roll();
+            }
+            console_cur(1, 1);
+        break;
+        case CONSOLE_BACK_FORCE:
+            if (console.x != 0)
+            {
+                console.x -= FONT_W;
+            }
+            else if (console.y != 0)
+            {
+                console.x = console.max_x - FONT_W;
+                console.y -= FONT_H;
             }
             console_cur(1, 1);
         break;

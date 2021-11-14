@@ -30,7 +30,7 @@ POINT_BOOT_TITLE:
     mov dx,0
     int 0x10
 
-    mov ah,0x2              ; 重新设置鼠标坐标
+    mov ah,0x2              ; 重新设置光标坐标
     mov bh,0
     mov dh,0
     mov dl,7

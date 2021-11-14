@@ -7,8 +7,8 @@
 
 extern void eval_void_start();
 
-static char cmdline_buffer[1024];
-static char *cmdline_args[32];
+static char cmdline_buffer[EVAL_CHAR_MAX];
+static char *cmdline_args[EVAL_ARGS_MAX];
 
 EVAL_VOID(help, "display this information")(int argc, char**argv)
 {
@@ -30,6 +30,7 @@ EVAL_VOID(help, "display this information")(int argc, char**argv)
 
 void eval()
 {
+    const char back_force[] = {CONSOLE_BACK_FORCE, '\0'};
     uint8_t ch;
     int i;
 
@@ -49,7 +50,7 @@ finsh:
         {
             while ((ch = get_key()) == 0) {}
 
-            if (ch >= ' ' && ch <= '~')
+            if (ch >= ' ' && ch <= '~' && (i >= ARRAY_SIZE(cmdline_buffer) ? (ch = '\n', i = -1, 0) : 1))
             {
                 printk("%c", ch);
                 cmdline_buffer[i++] = ch;
@@ -57,13 +58,19 @@ finsh:
             }
             else if (ch == '\n')
             {
+                if (i == -1)
+                {
+                    set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
+                    printk("\ntoo many characters (max = %d)", ARRAY_SIZE(cmdline_buffer));
+                    set_color(CONSOLE_FILL, CONSOLE_CLEAR);
+                }
                 printk("\n");
                 break;
             }
             else if (ch == 8 && i > 0)
             {
                 cmdline_buffer[--i] = '\0';
-                printk("\b \b");
+                printk((char *)back_force);
             }
         }
 
@@ -84,11 +91,15 @@ finsh:
                         cmdline_buffer[idx] = '\0';
                     }
                 }
-                else if (cmdline_buffer[idx] == '\"')
+                else if (cmdline_buffer[idx] == '\"' && (idx > 0 && cmdline_buffer[idx - 1] != '\\'))
                 {
-                    mark = !mark;
-                    if (!space)
+                    if ((mark = !mark))
                     {
+                        mark = idx;
+                    }
+                    else
+                    {
+                        space = 1;
                         cmdline_buffer[idx] = '\0';
                     }
                 }
@@ -97,10 +108,10 @@ finsh:
                     if (space || argc == 0)
                     {
                         cmdline_args[argc++] = &cmdline_buffer[idx];
-                        if (argc >= sizeof(cmdline_args) / sizeof(cmdline_args[0]))
+                        if (argc >= ARRAY_SIZE(cmdline_args))
                         {
                             set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
-                            printk("argc out of range(%d) error\n", sizeof(cmdline_args) / sizeof(cmdline_args[0]));
+                            printk("too many arguments (max = %d)\n", ARRAY_SIZE(cmdline_args));
                             set_color(CONSOLE_FILL, CONSOLE_CLEAR);
                             goto finsh;
                         }
@@ -112,7 +123,7 @@ finsh:
             if (mark)
             {
                 set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
-                printk("mark matching error\n");
+                printk("missing terminating \" character\n");
                 set_color(CONSOLE_FILL, CONSOLE_CLEAR);
                 continue;
             }
@@ -128,7 +139,9 @@ finsh:
                 ++node;
             }
 
+            set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
             printk("`%s' is not defined\n", cmdline_buffer);
+            set_color(CONSOLE_FILL, CONSOLE_CLEAR);
         }
     }
 }
