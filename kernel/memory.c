@@ -67,7 +67,7 @@ static inline void memory_remap()
         /* 填写每个页表项，1024（4KB / sizeof(void*)）个entry */
         for (j = 0; j < 1024; ++j)
         {
-            /* 页表[21:12]映射4K物理地址 */
+            /* 页表[21:12]，映射4K物理地址 */
             tbl_paddr[(map_vaddr >> 12) & 0x3ff] = map_paddr | KERNEL_PAGE_ATTR;
             map_paddr += PAGE_SIZE;
         }
@@ -79,6 +79,7 @@ static inline void memory_remap()
 
     sti();
 
+    /* 内核在加载前就已经映射4M */
     LOG("new map physical memory range = <4MB %dMB>\n", total_memory_bytes / (1 * MB));
     LOG("new map virtual memory range = <%p %p>\n", KERNEL_MAP_BASE_VADDR + 4 * MB, KERNEL_MAP_BASE_VADDR + total_memory_bytes);
 }
