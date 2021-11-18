@@ -68,6 +68,16 @@ void init_console(uint32_t width, uint32_t height)
     LOG("console width = %dPX, height = %dPX\n", console.width, console.height);
 }
 
+uint32_t get_console_cols()
+{
+    return console.max_x / FONT_W;
+}
+
+uint32_t get_console_rows()
+{
+    return console.max_y / FONT_H;
+}
+
 static void console_cur(int flush_old, int flush_new)
 {
     static uint32_t last_x = 0, last_y = 0;
