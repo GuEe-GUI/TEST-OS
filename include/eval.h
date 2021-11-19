@@ -6,7 +6,7 @@ struct eval_void
     uint32_t magic;
     const char *name;
     const char *info;
-    void (*handler)();
+    void (*handler)(int argc, char**argv);
 } __attribute__((packed));
 
 #define EVAL_VOID_MAGIC 0xfaceface

@@ -50,7 +50,7 @@ EVAL_VOID(thread, "thread control")(int argc, char**argv)
     {
         if (argv[2][i] < '0' || argv[2][i] > '9')
         {
-            printk("unrecognized tid `%s'\n", argv[2][0]);
+            printk("unrecognized tid `%s'\n", argv[2]);
             return;
         }
         tid *= 10;
@@ -76,7 +76,7 @@ EVAL_VOID(thread, "thread control")(int argc, char**argv)
     }
     default:
     {
-        printk("unrecognized option `%s'\n", argv[0]);
+        printk("unrecognized option `%s'\n", &argv[1][1]);
         break;
     }
     }
