@@ -4,10 +4,13 @@
 #include <memory.h>
 #include <string.h>
 #include <thread.h>
+#include <vbe.h>
+
+#define TID_BIT_NR  (sizeof(tid_t) * 8)
 
 static struct thread *thread_head[THREAD_STATUS_SIZE] = {NULL};
 static struct thread *current_thread = NULL;
-static tid_t tid_bitmap[KERNEL_THREAD_MAX / (sizeof(tid_t) * 8)] = {1}; /* 0号tid为缺省值 */
+static tid_t tid_bitmap[KERNEL_THREAD_MAX / TID_BIT_NR] = {1}; /* 0号tid为缺省值 */
 
 extern void switch_to_next_thread(void *prev, void *next);
 
@@ -58,11 +61,12 @@ void __attribute__((noreturn)) start_thread(void *handler)
     thread_head[THREAD_READY]->tid = 0;
     thread_head[THREAD_READY]->handler = &&thread_cleaner;
     thread_head[THREAD_READY]->params = NULL;
+    memcpy(thread_head[THREAD_READY]->name, "thread cleaner", sizeof("thread cleaner") - 1);
 
     thread_wake(thread_head[THREAD_READY]->tid);
     LOG("thread cleaner handler = %p, tid = %d\n", thread_head[THREAD_RUNNING]->handler, thread_head[THREAD_RUNNING]->tid);
 
-    if (thread_create(&tid, handler, NULL))
+    if (thread_create(&tid, "eval", handler, NULL))
     {
         PANIC("create first thread fail\n");
     }
@@ -100,6 +104,8 @@ thread_cleaner:
                     /* node节点为thread_head[THREAD_DIED] */
                     thread_head[THREAD_DIED] = node->next;
                 }
+                /* 归还tid */
+                tid_bitmap[node->tid / TID_BIT_NR] &= ~(1 << (node->tid % TID_BIT_NR));
                 free(node);
 
                 sti();
@@ -134,7 +140,7 @@ void thread_schedule()
     sti();
 }
 
-int thread_create(tid_t *tid, void *handler, void *params)
+int thread_create(tid_t *tid, char *name, void *handler, void *params)
 {
     int map_idx, bit_idx, status = -1;
     struct thread *new_thread = (struct thread *)malloc(KERNEL_THREAD_STACK_SIZE);
@@ -159,8 +165,15 @@ int thread_create(tid_t *tid, void *handler, void *params)
                     new_thread->ref = 0;
                     new_thread->handler = handler;
                     new_thread->params = params;
-                    new_thread->ret = thread_died;
                     new_thread->context.esp = 0;
+
+                    if (name == NULL)
+                    {
+                        name = "unnamed";
+                    }
+                    memset(new_thread->name, 0, KERNEL_THREAD_NAME_LEN);
+                    memcpy(new_thread->name, name, strlen(name));
+                    new_thread->name[KERNEL_THREAD_NAME_LEN - 1] = '\0';
 
                     if (thread_head[THREAD_READY] != NULL)
                     {
@@ -211,7 +224,7 @@ void thread_wake(tid_t tid)
             uint32_t *stack_top;
             stack_top = (uint32_t *)((uint32_t)node + KERNEL_THREAD_STACK_SIZE - sizeof(uint32_t) * 3);
             stack_top[0] = (uint32_t)node->handler;
-            stack_top[1] = (uint32_t)node->ret;
+            stack_top[1] = (uint32_t)thread_died;
             stack_top[2] = (uint32_t)node->params;
 
             node->context.esp = (uint32_t)stack_top;
@@ -310,6 +323,54 @@ void thread_exit(tid_t tid)
         node->next = thread_head[THREAD_DIED];
         thread_head[THREAD_DIED] = node;
     }
+
+    sti();
+}
+
+void print_thread()
+{
+    int len;
+    struct thread *node;
+    enum THREAD_STATUS status = 0;
+    const char *status_title[] =
+    {
+        [THREAD_RUNNING] = "running",
+        [THREAD_READY] = "ready",
+        [THREAD_WAITING] = "waiting",
+        [THREAD_DIED] = "died"
+    };
+
+    cli();
+
+    set_color_invert();
+    printk(" thread name     | tid       | status  ");
+    set_color_invert();
+    printk("\n");
+    while (status < THREAD_STATUS_SIZE)
+    {
+        node = thread_head[status];
+        while (node != NULL)
+        {
+            len = printk(" %s", node->name);
+            while (len < KERNEL_THREAD_NAME_LEN)
+            {
+                printk(" ");
+                ++len;
+            }
+            printk(" | ");
+            len = printk("%d", node->tid);
+            while (len < 10)
+            {
+                printk(" ");
+                ++len;
+            }
+            printk("| %s\n", status_title[status]);
+            node = node->next;
+        }
+        ++status;
+    }
+
+    node = thread_head[status];
 
     sti();
 }

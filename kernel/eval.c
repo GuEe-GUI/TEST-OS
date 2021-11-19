@@ -18,7 +18,7 @@ EVAL_VOID(help, "display this information")(int argc, char**argv)
     while (node != NULL && node->magic == EVAL_VOID_MAGIC)
     {
         cmdline_len = printk("%s", node->name);
-        while (cmdline_len < 10)
+        while (cmdline_len < KERNEL_THREAD_NAME_LEN)
         {
             printk(" ");
             ++cmdline_len;

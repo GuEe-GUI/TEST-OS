@@ -5,6 +5,7 @@
 
 #define KERNEL_THREAD_STEP          2
 #define KERNEL_THREAD_MAX           (1 << 8)   /* 256 */
+#define KERNEL_THREAD_NAME_LEN      16
 #define KERNEL_THREAD_STACK_SIZE    (4 * KB)
 
 enum THREAD_STATUS
@@ -32,10 +33,10 @@ struct thread
     tid_t tid;
     enum THREAD_STATUS status;
     uint8_t ref;
+    char name[KERNEL_THREAD_NAME_LEN];
 
     void (*handler)(void *params);
     void *params;
-    void *ret;
 
     struct thread_context context;
 
@@ -44,10 +45,11 @@ struct thread
 
 void __attribute__((noreturn)) start_thread(void *handler);
 void thread_schedule();
-int thread_create(tid_t *tid, void *handler, void *params);
+int thread_create(tid_t *tid, char *name, void *handler, void *params);
 void thread_wake(tid_t tid);
 void thread_suspend(tid_t tid);
 void thread_wait(tid_t tid);
 void thread_exit(tid_t tid);
+void print_thread();
 
 #endif

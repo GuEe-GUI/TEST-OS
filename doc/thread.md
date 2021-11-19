@@ -25,11 +25,11 @@ EVAL_VOID(thread_demo, "thread demo")(int argc, char**argv)
 {
     tid_t tid[5];
 
-    thread_create(&tid[0], print_char, (char *[]){(char *)'A', (char *)0xff0000ff});
-    thread_create(&tid[1], print_char, (char *[]){(char *)'B', (char *)0x00ff00ff});
-    thread_create(&tid[2], print_char, (char *[]){(char *)'C', (char *)0x0000ffff});
-    thread_create(&tid[3], print_char, (char *[]){(char *)'D', (char *)0x00ffffff});
-    thread_create(&tid[4], print_char, (char *[]){(char *)'E', (char *)0xffff00ff});
+    thread_create(&tid[0], NULL, print_char, (char *[]){(char *)'A', (char *)0xff0000ff});
+    thread_create(&tid[1], NULL, print_char, (char *[]){(char *)'B', (char *)0x00ff00ff});
+    thread_create(&tid[2], NULL, print_char, (char *[]){(char *)'C', (char *)0x0000ffff});
+    thread_create(&tid[3], NULL, print_char, (char *[]){(char *)'D', (char *)0x00ffffff});
+    thread_create(&tid[4], NULL, print_char, (char *[]){(char *)'E', (char *)0xffff00ff});
 
     thread_wake(tid[4]);
     thread_wake(tid[3]);

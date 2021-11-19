@@ -22,9 +22,11 @@ void init_bitmap(uint32_t bytes_len)
     bytes_len -= bitmap.map_size;
     bitmap.bits_start = KERNEL_HEAP_BOTTOM + bitmap.map_size;
 
-    bitmap.map = (uint8_t *)bitmap.bits_start;
+    bitmap.map = (uint8_t *)KERNEL_HEAP_BOTTOM;
     bitmap.bits_ptr = bitmap.bits_start;
     bitmap.bits_end = bitmap.bits_start + bytes_len;
+
+    memset(bitmap.map, 0, bitmap.map_size);
 
     LOG("bitmap range = <%p %p>, size = %dMB\n", bitmap.bits_start, bitmap.bits_end, bytes_len / (1 * MB));
 }
@@ -139,5 +141,38 @@ void bitmap_free(void *addr)
     }
 
 end:
+    sti();
+}
+
+void print_mem()
+{
+    size_t total = bitmap.map_size;
+    size_t free = 0;
+    size_t used = 0;
+    int i, j;
+
+    cli();
+
+    for (i = total - 1; i >= 0; --i)
+    {
+        for (j = 0; j < 8; ++j)
+        {
+            if (((bitmap.map[i] >> j) & 1) == 0)
+            {
+                ++free;
+            }
+            else
+            {
+                ++used;
+            }
+        }
+    }
+
+    total = total * (4 * KB * 8) / KB;
+    used  = used  * (4 * KB) / KB;
+    free  = free  * (4 * KB) / KB;
+
+    printk("mem (KB): %d total, %d free, %d used\n", total, free, used);
+
     sti();
 }

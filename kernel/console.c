@@ -110,10 +110,13 @@ void console_out(const char *string, uint32_t color, uint32_t background)
         switch (*string)
         {
         case '\n':
+        {
             console_roll();
             console_cur(1, 1);
-        break;
+            break;
+        }
         case '\t':
+        {
             console.x += (4 - (console.x / FONT_W) % 4) * FONT_W;
             if (console.x >= console.max_x)
             {
@@ -121,8 +124,10 @@ void console_out(const char *string, uint32_t color, uint32_t background)
                 console_roll();
             }
             console_cur(1, 1);
-        break;
+            break;
+        }
         case CONSOLE_BACK_FORCE:
+        {
             if (console.x != 0)
             {
                 console.x -= FONT_W;
@@ -133,19 +138,25 @@ void console_out(const char *string, uint32_t color, uint32_t background)
                 console.y -= FONT_H;
             }
             console_cur(1, 1);
-        break;
+            break;
+        }
         case '\b':
+        {
             if (console.x != 0)
             {
                 console.x -= FONT_W;
                 console_cur(1, 1);
             }
-        break;
+            break;
+        }
         case '\r':
+        {
             console.x = 0;
             console_cur(1, 1);
-        break;
+            break;
+        }
         default:
+        {
             put_char(*string, console.x, console.y);
             console.x += FONT_W;
             if (console.x >= console.max_x)
@@ -154,7 +165,8 @@ void console_out(const char *string, uint32_t color, uint32_t background)
                 console_roll();
             }
             console_cur(0, 1);
-        break;
+            break;
+        }
         }
         string++;
     }

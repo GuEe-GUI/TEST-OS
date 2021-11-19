@@ -6,7 +6,7 @@
 struct bitmap
 {
     uint8_t *map;
-    uint32_t map_size;
+    size_t map_size;
 
     uint32_t bits_ptr;
     uint32_t bits_start;
@@ -16,5 +16,6 @@ struct bitmap
 void init_bitmap(uint32_t bytes_len);
 void *bitmap_malloc(size_t size);
 void bitmap_free(void *addr);
+void print_mem();
 
 #endif
