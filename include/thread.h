@@ -43,7 +43,7 @@ struct thread
     struct thread *next;
 };
 
-void __attribute__((noreturn)) start_thread(void *handler);
+void __attribute__((noreturn)) start_thread(void *thread_list);
 void thread_schedule();
 int thread_create(tid_t *tid, char *name, void *handler, void *params);
 void thread_wake(tid_t tid);

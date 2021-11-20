@@ -4,6 +4,9 @@ LOAD_SECTORS         = 8
 KERNEL_SECTOR_OFFEST = 9
 KERNEL_SECTORS       = 348
 
+KERNEL_USING_RAM_MB  = 128
+KERNEL_LINKER_ADDR   = 0x80100000
+
 CROSS_COMPILE := x86_64-elf-
 
 AS = nasm
@@ -16,6 +19,7 @@ BOOT_BIN    = $(BUILD_DIR)/boot.bin
 LOADER_BIN  = $(BUILD_DIR)/loader.bin
 KERNEL_FILE = $(BUILD_DIR)/kernel.elf
 TEST_OS_IMG = TEST-OS.img
+FAT_FS_IMG  = FAT-FS.img
 
 MODE := __DEBUG__
 
@@ -23,7 +27,7 @@ ASM_KERNEL_FLAGS = -f elf32
 C_KERNEL_FLAGS = -Iinclude -Ikernel -m32 -D$(MODE) -Wall -nostdlib -fno-builtin -fno-leading-underscore
 CPP_KERNEL_FLAGS = -Wno-unused-command-line-argument -ffreestanding -fno-cxx-exceptions -fno-exceptions -fno-rtti -fno-unwind-tables -ibuiltininc -nogpulib -nostdlib
 
-LD_FLAGS = -m elf_i386 -e _start -Ttext 0x80100000
+LD_FLAGS = -m elf_i386 -e _start -Ttext $(KERNEL_LINKER_ADDR)
 
 OBJS = \
 	_Start.o\
@@ -53,27 +57,47 @@ OBJS := $(addprefix $(BUILD_DIR)/,${OBJS})
 all: $(shell mkdir -p $(BUILD_DIR)) $(TEST_OS_IMG) run
 
 $(TEST_OS_IMG): $(BOOT_BIN) $(LOADER_BIN) $(KERNEL_FILE)
-	qemu-img create $(TEST_OS_IMG) 1440K
-	dd if=$(BOOT_BIN) of=$(TEST_OS_IMG) bs=512 count=1 conv=notrunc
-	dd if=$(LOADER_BIN) of=$(TEST_OS_IMG) bs=512 seek=$(LOAD_SECTOR_OFFSET) count=$(LOAD_SECTORS) conv=notrunc
-	dd if=$(KERNEL_FILE) of=$(TEST_OS_IMG) bs=512 seek=$(KERNEL_SECTOR_OFFEST) count=$(KERNEL_SECTORS) conv=notrunc
+	@echo [QEMU] $@
+	@qemu-img create $@ 1440K -q
+	@echo [DD] $(BOOT_BIN)
+	@dd if=$(BOOT_BIN) of=$@ bs=512 count=1 conv=notrunc
+	@echo [DD] $(LOADER_BIN)
+	@dd if=$(LOADER_BIN) of=$@ bs=512 seek=$(LOAD_SECTOR_OFFSET) count=$(LOAD_SECTORS) conv=notrunc
+	@echo [DD] $(KERNEL_FILE)
+	@dd if=$(KERNEL_FILE) of=$@ bs=512 seek=$(KERNEL_SECTOR_OFFEST) count=$(KERNEL_SECTORS) conv=notrunc
 
-run: $(TEST_OS_IMG)
-	qemu-system-i386 -name "TEST OS" -m 128 -rtc base=localtime -boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy
+$(FAT_FS_IMG):
+	@echo [QEMU] $@
+	@qemu-img create $@ 64M -q
+
+run: $(TEST_OS_IMG) $(FAT_FS_IMG)
+	@echo [QEMU] RAM=$(KERNEL_USING_RAM_MB)MB $<
+	@qemu-system-i386 \
+		-name "TEST OS" \
+		-m $(KERNEL_USING_RAM_MB) \
+		-rtc base=localtime \
+		-boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy \
+		-drive id=disk0,file=$(FAT_FS_IMG),format=raw,if=none -device ahci,id=ahci -device ide-hd,drive=disk0,bus=ahci.0
 
 clean:
-	rm -rf $(BUILD_DIR)
-	rm -f *.img
+	@echo [RM] $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)
+	@echo [RM] $(TEST_OS_IMG)
+	@rm -f $(TEST_OS_IMG)
 
 $(BUILD_DIR)/%.bin: boot/%.asm
-	$(AS) -o $@ $<
+	@echo [AS] $<
+	@$(AS) -o $@ $<
 
 $(KERNEL_FILE): $(OBJS)
-	$(LD) $(LD_FLAGS) -o $(KERNEL_FILE) $^
+	@echo [LD] $(KERNEL_LINKER_ADDR) $@
+	@$(LD) $(LD_FLAGS) -o $(KERNEL_FILE) $^
 
 $(BUILD_DIR)/%.o: */%.asm
-	$(AS) $(ASM_KERNEL_FLAGS) -o $@ $<
+	@echo [AS] $<
+	@$(AS) $(ASM_KERNEL_FLAGS) -o $@ $<
 
 -include $(BUILD_DIR)/*.d
 $(BUILD_DIR)/%.o: */%.c
-	$(CC) -MMD $(C_KERNEL_FLAGS) -c $< -o $@
+	@echo [CC] $<
+	@$(CC) -MMD $(C_KERNEL_FLAGS) -c $< -o $@

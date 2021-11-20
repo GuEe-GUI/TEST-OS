@@ -48,6 +48,13 @@ void init_timer()
     LOG("cmos tick frequency = %dHZ\n", tick_frequency);
 }
 
+void delay(uint32_t millisecond)
+{
+    uint32_t current_tick = tick_to_millisecond();
+
+    while ((tick_to_millisecond() - current_tick) < millisecond);
+}
+
 void print_tick()
 {
     uint32_t current_tick = tick_to_millisecond();
@@ -74,11 +81,4 @@ void print_tick()
     }
     printk("%d.%s%s%d", second, &"0"[!!(msecond / 100)], &"0"[!!(msecond / 10)], msecond);
     console_out("]", 0, 0);
-}
-
-void delay(uint32_t millisecond)
-{
-    uint32_t current_tick = tick_to_millisecond();
-
-    while ((tick_to_millisecond() - current_tick) < millisecond);
 }

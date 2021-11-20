@@ -23,5 +23,9 @@ void __attribute__((noreturn)) entry(void)
     init_bitmap(get_total_memory_bytes());
     init_rtc();
 
-    start_thread(&eval);
+    start_thread((void *[])
+    {
+        PTR_LIST("eval", &eval, NULL),
+        NULL,
+    });
 }

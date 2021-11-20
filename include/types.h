@@ -30,4 +30,7 @@ typedef unsigned long  size_t;
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
+#define PTR_LIST(ptr, ...) (void *[]){ptr, ##__VA_ARGS__, NULL}
+#define PTR_LIST_ITEM(list, n) ((void **)list)[n]
+
 #endif

@@ -47,41 +47,53 @@ static void __attribute__((noreturn)) thread_died()
     for (;;);
 }
 
-void __attribute__((noreturn)) start_thread(void *handler)
+void __attribute__((noreturn)) start_thread(void *thread_list)
 {
     tid_t tid;
+    struct thread *thread_cleaner = (struct thread *)malloc(KERNEL_THREAD_STACK_SIZE);
 
-    thread_head[THREAD_READY] = (struct thread *)malloc(KERNEL_THREAD_STACK_SIZE);
-
-    if (thread_head[THREAD_READY] == NULL)
+    if ((thread_head[THREAD_READY] = thread_cleaner) == NULL)
     {
         PANIC("init thread cleaner fail\n");
     }
 
-    thread_head[THREAD_READY]->tid = 0;
-    thread_head[THREAD_READY]->handler = &&thread_cleaner;
-    thread_head[THREAD_READY]->params = NULL;
-    memcpy(thread_head[THREAD_READY]->name, "thread cleaner", sizeof("thread cleaner") - 1);
+    thread_cleaner->tid = 0;
+    thread_cleaner->handler = &&thread_cleaner_entry;
+    thread_cleaner->params = NULL;
+    memcpy(thread_cleaner->name, "thread cleaner", sizeof("thread cleaner") - 1);
 
-    thread_wake(thread_head[THREAD_READY]->tid);
-    LOG("thread cleaner handler = %p, tid = %d\n", thread_head[THREAD_RUNNING]->handler, thread_head[THREAD_RUNNING]->tid);
+    thread_wake(thread_cleaner->tid);
+    LOG("thread cleaner handler = %p, tid = %d\n", thread_cleaner->handler, thread_cleaner->tid);
 
-    if (thread_create(&tid, "eval", handler, NULL))
+    if (thread_list != NULL)
     {
-        PANIC("create first thread fail\n");
+        int i = 0;
+        while (PTR_LIST_ITEM(thread_list, i) != NULL)
+        {
+            char *name = (char *)PTR_LIST_ITEM(PTR_LIST_ITEM(thread_list, i), 0);
+            void *handler = (char *)PTR_LIST_ITEM(PTR_LIST_ITEM(thread_list, i), 1);
+            void *params = (char *)PTR_LIST_ITEM(PTR_LIST_ITEM(thread_list, i), 2);
+
+            ++i;
+
+            if (thread_create(&tid, name, handler, params))
+            {
+                PANIC("create %s thread fail\n", name);
+            }
+
+            thread_wake(tid);
+            LOG("%s thread handler = %p, tid = %d\n", name, handler, tid);
+        }
     }
 
-    thread_wake(tid);
-    LOG("first thread handler = %p, tid = %d\n", thread_head[THREAD_RUNNING]->handler, thread_head[THREAD_RUNNING]->tid);
-
     cli();
-    /* 允许线程调度，第一个执行的线程为thread_cleaner，因此为next */
-    current_thread = thread_head[THREAD_RUNNING]->next;
+    /* 允许线程调度，第一个执行的线程为thread_cleaner */
+    current_thread = thread_cleaner;
 
     /* 主动恢复thread_cleaner的esp */
-    __asm__ volatile ("movl %0, %%esp"::"r"(current_thread->context.esp));
+    __asm__ volatile ("movl %0, %%esp"::"r"(thread_cleaner->context.esp));
 
-thread_cleaner:
+thread_cleaner_entry:
     sti();
 
     for (;;)
