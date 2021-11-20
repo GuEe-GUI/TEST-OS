@@ -2,6 +2,7 @@
 #include <console.h>
 #include <device.h>
 #include <eval.h>
+#include <interrupt.h>
 #include <kernel.h>
 #include <rtc.h>
 #include <string.h>
@@ -13,7 +14,7 @@ EVAL_VOID(cls, "clear console")(int argc, char**argv)
     console_cls();
 }
 
-EVAL_VOID(date, "get rtc date")(int argc, char**argv)
+EVAL_VOID(rtc, "get rtc time")(int argc, char**argv)
 {
     struct rtc_time *time = read_rtc();
 
@@ -72,6 +73,64 @@ EVAL_VOID(thread, "thread control")(int argc, char**argv)
     case 'e':
     {
         thread_exit(tid);
+        break;
+    }
+    default:
+    {
+        printk("unrecognized option `%s'\n", &argv[1][1]);
+        break;
+    }
+    }
+
+    return;
+}
+
+EVAL_VOID(interrupt, "interrupt control")(int argc, char**argv)
+{
+    uint8_t vector = 0;
+    int i;
+
+    if (argc < 2 || argv[1][0] != '-' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
+    {
+        printk("usage: interrupt [options] [vector]\noptions:\n");
+        printk("  -e\tenable an interrupt\n");
+        printk("  -d\tdisable an interrupt\n");
+        printk("  -l\tlist all interrupts info\n");
+        return;
+    }
+
+    if (argv[1][1] == 'l')
+    {
+        print_interrupt();
+        return;
+    }
+    else if (argc < 3)
+    {
+        printk("no input vector\n");
+        return;
+    }
+
+    while (argv[2][i] != '\0')
+    {
+        if (argv[2][i] < '0' || argv[2][i] > '9')
+        {
+            printk("unrecognized vector `%s'\n", argv[2]);
+            return;
+        }
+        vector *= 10;
+        vector += argv[2][i++] - '0';
+    }
+
+    switch (argv[1][1])
+    {
+    case 'e':
+    {
+        enable_interrupt(vector);
+        break;
+    }
+    case 'd':
+    {
+        disable_interrupt(vector);
         break;
     }
     default:

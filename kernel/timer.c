@@ -33,6 +33,7 @@ void init_timer()
     uint32_t divisor = (CLOCK_TICK_RATE + tick_frequency / 2) / tick_frequency;
 
     register_interrupt(IRQ_0, timer_isr);
+    enable_interrupt(IRQ_0);
 
     /*
      *  0011 0110

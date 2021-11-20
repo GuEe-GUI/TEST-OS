@@ -48,7 +48,7 @@ struct registers
     uint32_t edx;
     uint32_t ecx;
     uint32_t eax;
-    uint32_t interrupt_number;
+    uint32_t interrupt_vector;
     uint32_t error_code;
     uint32_t eip;
     uint32_t cs;
@@ -126,7 +126,9 @@ extern void irq15(void);
 
 typedef void (*interrupt_handler)(struct registers *);
 
-void register_interrupt(uint8_t number, interrupt_handler handler);
+void register_interrupt(uint8_t vector, interrupt_handler handler);
+void enable_interrupt(uint8_t vector);
+void disable_interrupt(uint8_t vector);
 void init_idt(void);
 
 /* 8259a-总 */
@@ -148,5 +150,6 @@ void init_idt(void);
 #define PIC1_ICW4   0xA1
 
 void init_8259a(void);
+void print_interrupt();
 
 #endif

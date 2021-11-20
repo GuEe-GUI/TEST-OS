@@ -82,6 +82,7 @@ uint8_t get_key()
 void init_keyboard(void)
 {
     register_interrupt(IRQ_1, keyboard_isr);
+    enable_interrupt(IRQ_1);
 
     LOG("ps2 keyboard hook input\n");
 }

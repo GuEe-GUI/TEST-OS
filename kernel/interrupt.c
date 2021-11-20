@@ -2,10 +2,11 @@
 #include <interrupt.h>
 #include <kernel.h>
 #include <string.h>
+#include <vbe.h>
 
 struct idt idt[256];
 struct idtr idtr;
-interrupt_handler interrupthandlers[256] = {NULL};
+interrupt_handler interrupt_handlers[256] = {NULL};
 
 static void init_idt_descriptor(uint16_t segment_selector, uint32_t offset, uint16_t type, struct idt *idt)
 {
@@ -15,34 +16,61 @@ static void init_idt_descriptor(uint16_t segment_selector, uint32_t offset, uint
     idt->offset16_31 = (offset & 0xffff0000) >> 16;
 }
 
-void register_interrupt(uint8_t number, interrupt_handler handler)
+void register_interrupt(uint8_t vector, interrupt_handler handler)
 {
-    cli();
-    interrupthandlers[number] = handler;
+    interrupt_handlers[vector] = handler;
+}
 
-    uint16_t port = number < 8 ? PIC0_IMR : PIC1_IMR;
-    uint8_t value = io_in8(port) & ~(1 << number);
-    io_out8(port, value);
+void enable_interrupt(uint8_t vector)
+{
+    static uint16_t ocw1 = 0xFF;
 
-    sti();
+    vector -= IRQ_0;
+    ocw1 &= (uint16_t)~((1 << vector));
+
+    if (vector < 8)
+    {
+        io_out8(PIC0_IMR, (uint8_t)(ocw1 & 0xFF));
+    }
+    else
+    {
+        io_out8(PIC1_IMR, (uint8_t)(ocw1 >> 8));
+    }
+}
+
+void disable_interrupt(uint8_t vector)
+{
+    static uint16_t ocw1 = 0xFF;
+
+    vector -= IRQ_0;
+    ocw1 |= (uint16_t)((1 << vector));
+
+    if (vector < 8)
+    {
+        io_out8(PIC0_IMR, (uint8_t)(ocw1 & 0xFF));
+    }
+    else
+    {
+        io_out8(PIC1_IMR, (uint8_t)(ocw1 >> 8));
+    }
 }
 
 void isr_handler(struct registers *registers)
 {
-    if (interrupthandlers[registers->interrupt_number] != NULL)
+    if (interrupt_handlers[registers->interrupt_vector] != NULL)
     {
-        interrupthandlers[registers->interrupt_number](registers);
+        interrupt_handlers[registers->interrupt_vector](registers);
     }
     else
     {
-        PANIC("interrupt_number: %d\n", registers->interrupt_number);
+        PANIC("unhook interrupt vector: %d\n", registers->interrupt_vector);
     }
 }
 
 void irq_handler(struct registers *registers)
 {
     /* 发送重置信号 */
-    if (registers->interrupt_number >= 40)
+    if (registers->interrupt_vector >= 40)
     {
         /* 主 */
         io_out8(PIC1_ICW1, 0x20);
@@ -50,15 +78,15 @@ void irq_handler(struct registers *registers)
     /* 从 */
     io_out8(PIC0_OCW2, 0x20);
 
-    if (interrupthandlers[registers->interrupt_number] != NULL)
+    if (interrupt_handlers[registers->interrupt_vector] != NULL)
     {
-        interrupthandlers[registers->interrupt_number](registers);
+        interrupt_handlers[registers->interrupt_vector](registers);
     }
 }
 
 void init_idt(void)
 {
-    memset((uint8_t*)&interrupthandlers, 0, sizeof(interrupt_handler) << 8);
+    memset((uint8_t*)&interrupt_handlers, 0, sizeof(interrupt_handler) << 8);
 
     idtr.limite = (sizeof(struct idt) << 8) - 1;
     idtr.base  = (uint32_t)&idt;
@@ -123,9 +151,6 @@ void init_idt(void)
 
 void init_8259a(void)
 {
-    uint8_t pic0_mask = io_in8(PIC0_IMR);
-    uint8_t pic1_mask = io_in8(PIC1_IMR);
-
     io_out8(PIC0_IMR, 0xff);
     io_out8(PIC1_IMR, 0xff);
 
@@ -139,8 +164,111 @@ void init_8259a(void)
     io_out8(PIC1_ICW3, 0x02); /* 0000 0010 */
     io_out8(PIC1_ICW4, 0x01); /* 0000 0001 */
 
-    io_out8(PIC0_IMR, pic0_mask);
-    io_out8(PIC1_IMR, pic1_mask);
+    io_out8(PIC0_IMR, 0xff);
+    io_out8(PIC1_IMR, 0xff);
 
     LOG("interrupt control is 8259a\n");
+}
+
+void print_interrupt()
+{
+    int i, base, limite, len;
+    const char *interrupt_type[] =
+    {
+        "fault", "trap", "fault/trap", "abort", "interrupt"
+    };
+    const int reserved = ARRAY_SIZE(interrupt_type);
+    const struct
+    {
+        char *instructions;
+        uint8_t type;
+    } isr_info[] =
+    {
+        { "#DE divide zero", 0 },
+        { "#DB debug", 2 },
+        { "NMI non-maskable external interrupt", 4 },
+        { "#BP breakpoint", 1 },
+        { "#OF overflow", 1 },
+        { "#BR bound range exceeded", 0 },
+        { "#UD invalid opcode", 0 },
+        { "#NM device not available", 0 },
+        { "#DF double fault", 3 },
+        { "#MF coprocessor segment overrun", 0 },
+        { "#TS invalid tss", 0 },
+        { "#NP segment not present", 0 },
+        { "#SS stack fault", 0 },
+        { "#GP general protection", 0 },
+        { "#PF page-fault", 0 },
+        { NULL, reserved }, /* intel reserved */
+        { "#MF fpu floating-point error", 0 },
+        { "#AC alignment check", 0 },
+        { "#MC machine-check", 3 },
+        { "#XM simd floating-point", 0 },
+    }, irq_info[] =
+    {
+        { "cmos", 4 },
+        { "ps2 keyboard", 4 },
+        { "link IRQ9", 4 },
+        { "serial 2", 4 },
+        { "serial 1", 4 },
+        { "parallel 2", 4 },
+        { "floppy", 4 },
+        { "parallel 1", 4 },
+        { "rtc", 4 },
+        { "link IRQ2", 4 },
+        { "redirect IRQ2", 4 },
+        { NULL, reserved },
+        { NULL, reserved },
+        { "ps2 mouse", 4 },
+        { "fpu exception", 4 },
+        { "ide", 4 },
+        { NULL, reserved },
+    }, *info;
+
+    set_color_invert();
+    printk(" interrupt vector | type       | status | instructions ");
+    set_color_invert();
+    printk("\n");
+
+    info = isr_info;
+    base = 0;
+    limite = ARRAY_SIZE(isr_info);
+
+print_continue:
+    for (i = 0; i < limite; ++i)
+    {
+        if (info[i].type == reserved)
+        {
+            continue;
+        }
+        len = printk(" %d", i + base);
+        while (len < 18)
+        {
+            printk(" ");
+            ++len;
+        }
+        printk("|");
+        len = printk(" %s", interrupt_type[info[i].type]);
+        while (len < 12)
+        {
+            printk(" ");
+            ++len;
+        }
+        printk("|");
+        len = printk(" %s", interrupt_handlers[i + base] == NULL ? "unused" : "using");
+        while (len < 8)
+        {
+            printk(" ");
+            ++len;
+        }
+        printk("| %s\n", info[i].instructions);
+    }
+
+    if (info != irq_info)
+    {
+        info = irq_info;
+        base = IRQ_0;
+        limite = ARRAY_SIZE(irq_info);
+        goto print_continue;
+    }
 }
