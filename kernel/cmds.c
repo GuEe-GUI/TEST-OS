@@ -71,7 +71,7 @@ EVAL_VOID(thread, "thread control")(int argc, char**argv)
     }
     case 'e':
     {
-        thread_wait(tid);
+        thread_exit(tid);
         break;
     }
     default:

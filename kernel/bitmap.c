@@ -119,11 +119,13 @@ void bitmap_free(void *addr)
 
     cli();
 
-    size = *((uint8_t *)addr - 1);
+    /* size存放在前一个字节，前一个字节开始为申请内存地址的起点 */
+    addr = ((uint8_t *)addr) - 1;
+    size = *((uint8_t *)addr);
     /* 在bitmap哪个地址 */
-    i = bitmap.map_size - (bitmap.bits_end - (uint32_t)addr) / (8 * 4 * KB) - 1;
+    i = ((uint32_t)addr - bitmap.bits_start) / (4 * KB * 8);
     /* 在该地址哪个bit */
-    j = (uint32_t)addr - (bitmap.bits_start + i * 8 * 4 * KB);
+    j = (((uint32_t)addr - bitmap.bits_start) - i * (4 * KB * 8)) / (4 * KB);
 
     for (; i < bitmap.map_size; ++i)
     {
