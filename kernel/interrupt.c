@@ -215,7 +215,6 @@ void print_interrupt()
         { "floppy", 4 },
         { "parallel 1", 4 },
         { "rtc", 4 },
-        { "link IRQ2", 4 },
         { "redirect IRQ2", 4 },
         { NULL, reserved },
         { NULL, reserved },
@@ -226,7 +225,7 @@ void print_interrupt()
     }, *info;
 
     set_color_invert();
-    printk(" interrupt vector | type       | status | instructions ");
+    printk(" interrupt vector | type       | status | instructions                        ");
     set_color_invert();
     printk("\n");
 

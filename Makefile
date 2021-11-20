@@ -15,7 +15,7 @@ BUILD_DIR = build
 BOOT_BIN    = $(BUILD_DIR)/boot.bin
 LOADER_BIN  = $(BUILD_DIR)/loader.bin
 KERNEL_FILE = $(BUILD_DIR)/kernel.elf
-TEST_OS_IMG = TEST_OS.img
+TEST_OS_IMG = TEST-OS.img
 
 MODE := __DEBUG__
 
