@@ -15,4 +15,22 @@ extern uint8_t io_in8(uint32_t port);
 extern uint16_t io_in16(uint32_t port);
 extern uint32_t io_in32(uint32_t port);
 
+static inline void outportw(unsigned short port, unsigned short data)
+{
+    cli();
+    __asm__ volatile ("outw %1, %0"::"dN"(port), "a"(data));
+    sti();
+}
+
+static inline unsigned short inportw(unsigned short port)
+{
+    unsigned short ret;
+
+    cli();
+    __asm__ volatile ("inw %1, %0":"=a"(ret):"dN"(port));
+    sti();
+
+    return ret;
+}
+
 #endif

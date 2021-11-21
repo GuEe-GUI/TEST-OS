@@ -53,4 +53,9 @@ void thread_wait(tid_t tid);
 void thread_exit(tid_t tid);
 void print_thread();
 
+static inline void thread_yield()
+{
+    thread_schedule();
+}
+
 #endif

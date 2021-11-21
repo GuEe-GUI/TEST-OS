@@ -51,7 +51,7 @@ void *bitmap_malloc(size_t size)
     found = 0;
     ret = NULL;
     /* 获取当前bitmap内存指针 */
-    i = bitmap.map_size - (bitmap.bits_end - bitmap.bits_ptr) / (8 * 4 * KB) - 1;
+    i = (bitmap.bits_ptr - bitmap.bits_start) / (8 * 4 * KB);
     /* 作为i的限制 */
     len = bitmap.map_size;
 
@@ -73,18 +73,19 @@ found_prev:
             }
             if (found == size)
             {
-                ret = (void *)(bitmap.bits_start + (i * 8 + j) * (4 * KB));
+                size_t alloc_size = size * (4 * KB);
+                ret = (void *)(bitmap.bits_start + (i * 8 + j + 1) * (4 * KB) - alloc_size);
                 /* 标记内存大小（内存至少分配4KB，用1byte记录内存大小影响不大） */
                 *ret++ = (uint8_t)size;
                 /* 地址+1返回 */
-                bitmap.bits_ptr = (uint32_t)ret + (4 * KB);
+                bitmap.bits_ptr = (uint32_t)ret + alloc_size;
                 /* 标记位图被占用 */
                 while (size > 0)
                 {
                     bitmap.map[i] |= 1 << j;
                     --j;
                     --size;
-                    if (j <= 0)
+                    if (j < 0)
                     {
                         j = 7;
                         --i;
@@ -123,7 +124,7 @@ void bitmap_free(void *addr)
     addr = ((uint8_t *)addr) - 1;
     size = *((uint8_t *)addr);
     /* 在bitmap哪个地址 */
-    i = ((uint32_t)addr - bitmap.bits_start) / (4 * KB * 8);
+    i = ((uint32_t)addr - bitmap.bits_start) / (8 * 4 * KB);
     /* 在该地址哪个bit */
     j = (((uint32_t)addr - bitmap.bits_start) - i * (4 * KB * 8)) / (4 * KB);
 

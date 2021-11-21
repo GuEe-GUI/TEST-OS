@@ -46,6 +46,7 @@ OBJS = \
 	printk.o\
 	bitmap.o\
 	keyboard.o\
+	ide.o\
 	thread.o\
 	eval.o\
 	cmds.o\
@@ -76,8 +77,8 @@ run: $(TEST_OS_IMG) $(FAT_FS_IMG)
 		-name "TEST OS" \
 		-m $(KERNEL_USING_RAM_MB) \
 		-rtc base=localtime \
-		-boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy \
-		-drive file=$(FAT_FS_IMG),format=raw,index=0,media=disk
+		-drive file=$(FAT_FS_IMG),format=raw,if=ide \
+		-boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy
 
 clean:
 	@echo [RM] $(BUILD_DIR)

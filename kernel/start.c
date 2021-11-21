@@ -22,6 +22,7 @@ void __attribute__((noreturn)) entry(void)
     init_memory();
     init_bitmap(get_total_memory_bytes());
     init_rtc();
+    init_ide();
 
     start_thread((void *[])
     {

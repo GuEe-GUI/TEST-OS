@@ -4,6 +4,7 @@
 #include <eval.h>
 #include <interrupt.h>
 #include <kernel.h>
+#include <malloc.h>
 #include <rtc.h>
 #include <string.h>
 #include <thread.h>
