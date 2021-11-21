@@ -45,8 +45,6 @@ static inline void memory_remap()
     uint32_t *dir_paddr = (void *)KERNEL_PAGE_DIR_PADDR;
     uint32_t *tbl_paddr = (void *)KERNEL_VA_PAGE_PADDR;
 
-    cli();
-
     /* 从内核只需要最多大约1G内存空间，映射的内存区域[0 ~ KERNEL_PAGE_MAP_MAX] */
     if (total_memory_bytes > KERNEL_PAGE_MAP_MAX)
     {
@@ -76,8 +74,6 @@ static inline void memory_remap()
         /* 准备映射下一个4M的地址 */
         map_vaddr += 4 * MB;
     }
-
-    sti();
 
     /* 内核在加载前就已经映射4M */
     LOG("new map physical memory range = <4MB %dMB>\n", total_memory_bytes / (1 * MB));

@@ -161,3 +161,28 @@ EVAL_VOID(poweroff, "poweroff...")(int argc, char**argv)
 
     PANIC("poweroff fail\n");
 }
+
+EVAL_VOID(dir, "display files in this directory")(int argc, char**argv)
+{
+}
+
+EVAL_VOID(rename, "rename a file/directory")(int argc, char**argv)
+{
+}
+
+EVAL_VOID(copy, "copy a file/directory")(int argc, char**argv)
+{
+}
+
+EVAL_VOID(del, "del a file/directory")(int argc, char**argv)
+{
+    if (argc < 2)
+    {
+        printk("no input file\n");
+        return;
+    }
+}
+
+EVAL_VOID(log, "write/read file")(int argc, char**argv)
+{
+}

@@ -209,6 +209,11 @@ finsh:
     return status;
 }
 
+tid_t thread_current()
+{
+    return current_thread->tid;
+}
+
 void thread_wake(tid_t tid)
 {
     struct thread *prev;
@@ -216,7 +221,8 @@ void thread_wake(tid_t tid)
 
     cli();
 
-    if (!thread_find_by_tid(tid, THREAD_READY, &prev, &node))
+    if (!thread_find_by_tid(tid, THREAD_READY, &prev, &node) ||
+        !thread_find_by_tid(tid, THREAD_WAITING, &prev, &node))
     {
         if (prev != NULL)
         {

@@ -40,17 +40,17 @@ OBJS = \
 	interrupt.o\
 	timer.o\
 	rtc.o\
-	string.o\
 	console.o\
 	assert.o\
-	text.o\
 	memory.o\
 	printk.o\
 	bitmap.o\
 	keyboard.o\
 	thread.o\
 	eval.o\
-	cmds.o
+	cmds.o\
+	string.o\
+	text.o
 
 OBJS := $(addprefix $(BUILD_DIR)/,${OBJS})
 
@@ -77,7 +77,7 @@ run: $(TEST_OS_IMG) $(FAT_FS_IMG)
 		-m $(KERNEL_USING_RAM_MB) \
 		-rtc base=localtime \
 		-boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy \
-		-drive id=disk0,file=$(FAT_FS_IMG),format=raw,if=none -device ahci,id=ahci -device ide-hd,drive=disk0,bus=ahci.0
+		-drive file=$(FAT_FS_IMG),format=raw,index=0,media=disk
 
 clean:
 	@echo [RM] $(BUILD_DIR)

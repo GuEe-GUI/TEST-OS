@@ -46,6 +46,7 @@ struct thread
 void __attribute__((noreturn)) start_thread(void *thread_list);
 void thread_schedule();
 int thread_create(tid_t *tid, char *name, void *handler, void *params);
+tid_t thread_current();
 void thread_wake(tid_t tid);
 void thread_suspend(tid_t tid);
 void thread_wait(tid_t tid);
