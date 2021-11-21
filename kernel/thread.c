@@ -218,11 +218,12 @@ void thread_wake(tid_t tid)
 {
     struct thread *prev;
     struct thread *node;
+    int find_from_waiting = 0;
 
     cli();
 
     if (!thread_find_by_tid(tid, THREAD_READY, &prev, &node) ||
-        !thread_find_by_tid(tid, THREAD_WAITING, &prev, &node))
+        (find_from_waiting = 1, !thread_find_by_tid(tid, THREAD_WAITING, &prev, &node)))
     {
         if (prev != NULL)
         {
@@ -230,8 +231,16 @@ void thread_wake(tid_t tid)
         }
         else
         {
-            /* 节点为thread_head[THREAD_READY] */
-            thread_head[THREAD_READY] = node->next;
+            if (find_from_waiting)
+            {
+                /* 节点为thread_head[THREAD_WAITING] */
+                thread_head[THREAD_WAITING] = node->next;
+            }
+            else
+            {
+                /* 节点为thread_head[THREAD_READY] */
+                thread_head[THREAD_READY] = node->next;
+            }
         }
         node->status = THREAD_RUNNING;
         node->next = thread_head[THREAD_RUNNING];
