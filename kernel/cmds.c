@@ -149,18 +149,18 @@ EVAL_VOID(mem, "memory info")(int argc, char**argv)
     print_mem();
 }
 
-EVAL_VOID(poweroff, "poweroff...")(int argc, char**argv)
+EVAL_VOID(powerdown, "powerdown...")(int argc, char**argv)
 {
     cli();
 
-    LOG("poweroff...");
+    LOG("powerdown...");
 
     /* QEMU (newer) */
     __asm__ volatile ("outw %%ax, %%dx"::"d"(0x604), "a"(0x2000));
     /* QEMU (2.0)， bochs */
     __asm__ volatile ("outw %%ax, %%dx"::"d"(0xb004), "a"(0x2000));
 
-    PANIC("poweroff fail\n");
+    PANIC("powerdown fail\n");
 }
 
 EVAL_VOID(dir, "display files in this directory")(int argc, char**argv)

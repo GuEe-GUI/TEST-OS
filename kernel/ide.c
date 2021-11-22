@@ -1,9 +1,22 @@
 #include <device.h>
+#include <interrupt.h>
 #include <io.h>
 #include <kernel.h>
 #include <malloc.h>
+#include <thread.h>
 
-/* SATA */
+/* ATA */
+#define ATA_SR_BSY          0x80    /* busy */
+#define ATA_SR_DRDY         0x40    /* drive ready */
+#define ATA_SR_DF           0x20    /* drive write fault */
+#define ATA_SR_DSC          0x10    /* drive seek complete */
+#define ATA_SR_DRQ          0x08    /* data request ready */
+#define ATA_SR_CORR         0x04    /* corrected data */
+#define ATA_SR_IDX          0x02    /* index */
+#define ATA_SR_ERR          0x01    /* error */
+
+#define ATA_EOI             0x20
+
 #define ATA_MASTER          0x00
 #define ATA_SLAVE           0x01
 
@@ -18,6 +31,9 @@
 
 #define ATA_IDENT_MODEL     54
 #define ATA_IDENT_NAME_MAX  40
+
+#define ATA_BUS_PRIMARY_CTL_PRI     0x1f7
+#define ATA_BUS_SECONDARY_CTL_PRI   0x177
 
 #define ATA_CMD_IDENTIFY            0xec
 #define ATA_CMD_READ_SECTORS        0x20
@@ -38,13 +54,13 @@ static uint16_t ide_bus_cmd[] =
     [ATA_PRIMARY] = ATA_PRIMARY_CMD,
     [ATA_SECONDARY] = ATA_SECONDARY_CMD,
 };
+static uint8_t ide_ata_cmd = 0, ide_ata_drive = 0;
 
-void ata_read_sector(unsigned long lba, uint8_t count, uint16_t *half_buf)
+void ata_read_lba_sector(unsigned long lba, uint8_t count, uint16_t *half_buf)
 {
-
 }
 
-void ata_write_sector(unsigned long lba, uint8_t count, uint16_t *half_buf)
+void ata_write_lba_sector(unsigned long lba, uint8_t count, uint16_t *half_buf)
 {
 }
 
@@ -61,7 +77,7 @@ void ide_identify(uint8_t bus, uint8_t drive)
 
     if (io_in8(cmd + 7) == 0)
     {
-        LOG("ide device does not exist\n");
+        LOG("ide[%d:%d] device does not exist\n", bus, drive);
 
         return;
     }
@@ -70,6 +86,9 @@ void ide_identify(uint8_t bus, uint8_t drive)
     {
         int i;
         char *name = (char *)malloc(ATA_IDENT_NAME_MAX);
+
+        ide_ata_cmd = cmd;
+        ide_ata_drive = drive;
 
         for (i = 0; i < 256; ++i)
         {
@@ -85,18 +104,18 @@ void ide_identify(uint8_t bus, uint8_t drive)
         }
         name[i + 1] = '\0';
 
-        LOG("ide device using ata name = \"%s\"\n", name);
+        LOG("ide[%d:%d] device using ata name = \"%s\"\n", bus, drive, name);
         free(name);
     }
     else if (io_in8(SATA_LBAMID_PRI) == SATA_INT_GET_RET || io_in8(SATA_LBAHI_PRI) == SATA_INT_GET_RET)
     {
-        LOG("ide device using %s is not supported yet\n", "sata");
+        LOG("ide[%d:%d] device using %s is not supported yet\n", bus, drive, "sata");
 
         return;
     }
     else
     {
-        LOG("ide device using %s is not supported yet\n", "atapi");
+        LOG("ide[%d:%d] device using %s is not supported yet\n", bus, drive, "atapi");
 
         return;
     }

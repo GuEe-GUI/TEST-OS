@@ -60,7 +60,7 @@ void __attribute__((noreturn)) start_thread(void *thread_list)
     thread_cleaner->tid = 0;
     thread_cleaner->handler = &&thread_cleaner_entry;
     thread_cleaner->params = NULL;
-    memcpy(thread_cleaner->name, "thread cleaner", sizeof("thread cleaner") - 1);
+    memcpy(thread_cleaner->name, "thread cleaner", sizeof("thread cleaner"));
 
     thread_wake(thread_cleaner->tid);
     LOG("thread cleaner handler = %p, tid = %d\n", thread_cleaner->handler, thread_cleaner->tid);
