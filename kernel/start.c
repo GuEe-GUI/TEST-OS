@@ -26,6 +26,7 @@ void __attribute__((noreturn)) entry(void)
 
     start_thread((void *[])
     {
+        PTR_LIST("sleeper polling", &sleeper_polling, NULL),
         PTR_LIST("eval", &eval, NULL),
         NULL,
     });

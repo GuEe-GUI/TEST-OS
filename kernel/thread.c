@@ -9,7 +9,7 @@
 #define TID_BIT_NR  (sizeof(tid_t) * 8)
 
 static struct thread *thread_head[THREAD_STATUS_SIZE] = {NULL};
-static struct thread *current_thread = NULL;
+static struct thread *current_thread = NULL, *fix_next_thread = NULL;
 static tid_t tid_bitmap[KERNEL_THREAD_MAX / TID_BIT_NR] = {1}; /* 0号tid为缺省值 */
 
 extern void switch_to_next_thread(void *prev, void *next);
@@ -58,6 +58,7 @@ void __attribute__((noreturn)) start_thread(void *thread_list)
     }
 
     thread_cleaner->tid = 0;
+    thread_cleaner->wake_millisecond = 0;
     thread_cleaner->handler = &&thread_cleaner_entry;
     thread_cleaner->params = NULL;
     memcpy(thread_cleaner->name, "thread cleaner", sizeof("thread cleaner"));
@@ -125,6 +126,8 @@ thread_cleaner_entry:
             prev = node;
             node = node->next;
         }
+        /* 可销毁节点已空，让出cpu使用权 */
+        thread_yield();
     }
 }
 
@@ -136,7 +139,12 @@ void thread_schedule()
     {
         struct thread *prev = current_thread;
 
-        if (current_thread->next != NULL)
+        if (fix_next_thread != NULL)
+        {
+            current_thread = fix_next_thread;
+            fix_next_thread = NULL;
+        }
+        else if (current_thread->next != NULL)
         {
             current_thread = current_thread->next;
         }
@@ -174,6 +182,7 @@ int thread_create(tid_t *tid, char *name, void *handler, void *params)
                     *tid = map_idx * (sizeof(tid_t) * 8) + bit_idx;
                     new_thread->tid = *tid;
                     new_thread->status = THREAD_READY;
+                    new_thread->wake_millisecond = 0;
                     new_thread->ref = 0;
                     new_thread->handler = handler;
                     new_thread->params = params;
@@ -209,9 +218,11 @@ finsh:
     return status;
 }
 
-tid_t thread_current()
+struct thread *thread_current()
 {
-    return current_thread->tid;
+    ASSERT(current_thread);
+
+    return current_thread;
 }
 
 void thread_wake(tid_t tid)
@@ -276,6 +287,8 @@ void thread_suspend(tid_t tid)
 
     if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node))
     {
+        struct thread *current = thread_current();
+
         if (prev != NULL)
         {
             prev->next = node->next;
@@ -285,9 +298,22 @@ void thread_suspend(tid_t tid)
             /* node节点为thread_head[THREAD_RUNNING] */
             thread_head[THREAD_RUNNING] = node->next;
         }
+
+        /* 如果是当前线程暂停自己就要进行切换修复 */
+        if (tid == current->tid && (fix_next_thread = node->next) == NULL)
+        {
+            fix_next_thread = thread_head[THREAD_RUNNING];
+        }
+
         node->status = THREAD_WAITING;
         node->next = thread_head[THREAD_WAITING];
         thread_head[THREAD_WAITING] = node;
+
+        if (tid == current->tid)
+        {
+            /* 中断将会在此重新打开 */
+            thread_yield();
+        }
     }
 
     sti();
@@ -337,6 +363,8 @@ void thread_exit(tid_t tid)
 
     if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node))
     {
+        struct thread *current = thread_current();
+
         if (prev != NULL)
         {
             prev->next = node->next;
@@ -346,12 +374,32 @@ void thread_exit(tid_t tid)
             /* node节点为thread_head[THREAD_RUNNING] */
             thread_head[THREAD_RUNNING] = node->next;
         }
+
+        /* 如果是当前线程暂停自己就要进行切换修复 */
+        if (tid == current->tid && (fix_next_thread = node->next) == NULL)
+        {
+            fix_next_thread = thread_head[THREAD_RUNNING];
+        }
+
         node->status = THREAD_DIED;
         node->next = thread_head[THREAD_DIED];
         thread_head[THREAD_DIED] = node;
+
+        if (tid == current->tid)
+        {
+            /* 中断将会在此重新打开 */
+            thread_yield();
+        }
     }
 
     sti();
+}
+
+struct thread *thread_list(enum THREAD_STATUS status)
+{
+    ASSERT(status < THREAD_STATUS_SIZE);
+
+    return thread_head[status];
 }
 
 void print_thread()

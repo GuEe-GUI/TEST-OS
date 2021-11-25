@@ -7,7 +7,7 @@
 #include <thread.h>
 
 static uint32_t tick_val = 0;
-static const uint32_t tick_frequency = KERN_TICK_HZ;
+static const uint32_t tick_frequency = KERNEL_TICK_HZ;
 
 static uint32_t tick_to_millisecond()
 {
@@ -53,6 +53,63 @@ void delay(uint32_t millisecond)
     uint32_t current_tick = tick_to_millisecond();
 
     while ((tick_to_millisecond() - current_tick) < millisecond);
+}
+
+void sleep(uint32_t millisecond)
+{
+    /* 延时5ms以上使用该方法sleep才有意义 */
+    if (millisecond > 5)
+    {
+        struct thread *current_thread;
+
+        cli();
+
+        current_thread = thread_current();
+        current_thread->wake_millisecond = tick_to_millisecond() + millisecond;
+        ++(current_thread->ref);
+
+        /* 暂停当前线程，会自动切换出去 */
+        thread_suspend(current_thread->tid);
+    }
+    else
+    {
+        delay(millisecond);
+    }
+}
+
+void sleeper_polling()
+{
+    for (;;)
+    {
+        struct thread *next;
+        struct thread *node = thread_list(THREAD_WAITING);
+        uint32_t min_wake_millisecond = ~0;
+
+        while (node != NULL)
+        {
+            next = node->next;
+            if (node->wake_millisecond <= tick_to_millisecond())
+            {
+                cli();
+
+                --(node->ref);
+                /* node唤醒后会切换为线程运行队列的第一个线程 */
+                thread_wake(node->tid);
+
+                sti();
+            }
+            else if (node->wake_millisecond < min_wake_millisecond)
+            {
+                min_wake_millisecond = node->wake_millisecond;
+            }
+            node = next;
+        }
+        /* 如果所有睡眠的线程都将较晚才唤醒，则让出cpu使用权，否则继续轮询 */
+        if (min_wake_millisecond > 10)
+        {
+            thread_yield();
+        }
+    }
 }
 
 void print_tick()

@@ -149,11 +149,11 @@ EVAL_VOID(mem, "memory info")(int argc, char**argv)
     print_mem();
 }
 
-EVAL_VOID(powerdown, "powerdown...")(int argc, char**argv)
+EVAL_VOID(powerdown, "machine power down")(int argc, char**argv)
 {
     cli();
 
-    LOG("powerdown...");
+    LOG("machine power down");
 
     /* QEMU (newer) */
     __asm__ volatile ("outw %%ax, %%dx"::"d"(0x604), "a"(0x2000));
@@ -184,6 +184,24 @@ EVAL_VOID(del, "del a file/directory")(int argc, char**argv)
     }
 }
 
-EVAL_VOID(log, "write/read file")(int argc, char**argv)
+EVAL_VOID(pushf, "push data to file")(int argc, char**argv)
 {
+    if (argc < 2 || argv[1][0] != '>' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
+    {
+        printk("usage: pushf [data] [options] [file]\noptions:\n");
+        printk("  > \toverlay data to file\n");
+        printk("  >>\tappend data to file\n");
+        return;
+    }
+}
+
+EVAL_VOID(popf, "pop data from file")(int argc, char**argv)
+{
+    if (argc < 2 || argv[1][0] != '-' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
+    {
+        printk("usage: popf [options] [file]\noptions:\n");
+        printk("  -a\tprint with ascii\n");
+        printk("  -h\tprint with hex\n");
+        return;
+    }
 }

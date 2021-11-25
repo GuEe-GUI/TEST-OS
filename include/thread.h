@@ -2,6 +2,7 @@
 #define _THREAD_H_
 
 #include <types.h>
+#include <timer.h>
 
 #define KERNEL_THREAD_STEP          2
 #define KERNEL_THREAD_MAX           (1 << 8)   /* 256 */
@@ -32,7 +33,8 @@ struct thread
 {
     tid_t tid;
     enum THREAD_STATUS status;
-    uint8_t ref;
+    uint32_t wake_millisecond;
+    uint32_t ref;
     char name[KERNEL_THREAD_NAME_LEN];
 
     void (*handler)(void *params);
@@ -46,11 +48,12 @@ struct thread
 void __attribute__((noreturn)) start_thread(void *thread_list);
 void thread_schedule();
 int thread_create(tid_t *tid, char *name, void *handler, void *params);
-tid_t thread_current();
+struct thread *thread_current();
 void thread_wake(tid_t tid);
 void thread_suspend(tid_t tid);
 void thread_wait(tid_t tid);
 void thread_exit(tid_t tid);
+struct thread *thread_list(enum THREAD_STATUS status);
 void print_thread();
 
 static inline void thread_yield()
