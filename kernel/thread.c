@@ -311,8 +311,8 @@ void thread_suspend(tid_t tid)
 
         if (tid == current->tid)
         {
-            /* 中断将会在此重新打开 */
-            thread_yield();
+            /* 立即切出线程，中断将会在此重新打开 */
+            thread_schedule();
         }
     }
 
@@ -387,8 +387,8 @@ void thread_exit(tid_t tid)
 
         if (tid == current->tid)
         {
-            /* 中断将会在此重新打开 */
-            thread_yield();
+            /* 立即切出线程，中断将会在此重新打开 */
+            thread_schedule();
         }
     }
 
