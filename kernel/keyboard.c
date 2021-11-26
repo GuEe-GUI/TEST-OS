@@ -27,23 +27,24 @@ static void keyboard_isr()
     uint32_t st, data, c;
 
     st = io_in8(KBSTATP);
-    if((st & KBS_DIB) == 0)
+    if ((st & KBS_DIB) == 0)
     {
         return;
     }
     data = io_in8(KBDATAP);
 
-    if (data == 0xE0) {
+    if (data == 0xE0)
+    {
         shift |= E0ESC;
         return;
     }
-    else if(data & 0x80)
+    else if (data & 0x80)
     {
         data = (shift & E0ESC ? data : data & 0x7F);
         shift &= ~(shiftcode[data] | E0ESC);
         return;
     }
-    else if(shift & E0ESC)
+    else if (shift & E0ESC)
     {
         data |= 0x80;
         shift &= ~E0ESC;
@@ -59,7 +60,7 @@ static void keyboard_isr()
         {
             c += 'A' - 'a';
         }
-        else if('A' <= c && c <= 'Z')
+        else if ('A' <= c && c <= 'Z')
         {
             c += 'a' - 'A';
         }
