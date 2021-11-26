@@ -25,7 +25,7 @@ EVAL_VOID(rtc, "get rtc time")(int argc, char**argv)
 EVAL_VOID(thread, "thread control")(int argc, char**argv)
 {
     tid_t tid = 0;
-    int i;
+    int i = 0;
 
     if (argc < 2 || argv[1][0] != '-' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
     {
@@ -89,7 +89,7 @@ EVAL_VOID(thread, "thread control")(int argc, char**argv)
 EVAL_VOID(interrupt, "interrupt control")(int argc, char**argv)
 {
     uint8_t vector = 0;
-    int i;
+    int i = 0;
 
     if (argc < 2 || argv[1][0] != '-' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
     {

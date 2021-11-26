@@ -28,7 +28,7 @@ void init_bitmap(uint32_t bytes_len)
 
     memset(bitmap.map, 0, bitmap.map_size);
 
-    LOG("bitmap range = <%p %p>, size = %dMB\n", bitmap.bits_start, bitmap.bits_end, bytes_len / (1 * MB));
+    LOG("bitmap range = <0x%p 0x%p>, size = %dMB\n", bitmap.bits_start, bitmap.bits_end, bytes_len / (1 * MB));
 }
 
 void *bitmap_malloc(size_t size)

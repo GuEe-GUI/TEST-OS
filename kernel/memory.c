@@ -77,12 +77,12 @@ static inline void memory_remap()
 
     /* 内核在加载前就已经映射4M */
     LOG("new map physical memory range = <4MB %dMB>\n", total_memory_bytes / (1 * MB));
-    LOG("new map virtual memory range = <%p %p>\n", KERNEL_MAP_BASE_VADDR + 4 * MB, KERNEL_MAP_BASE_VADDR + total_memory_bytes);
+    LOG("new map virtual memory range = <0x%p 0x%p>\n", KERNEL_MAP_BASE_VADDR + 4 * MB, KERNEL_MAP_BASE_VADDR + total_memory_bytes);
 }
 
 void __attribute__((noreturn)) page_failure_isr(struct registers *reg)
 {
-    PANIC("page failure error in eip = %p, esp = %p\n", reg->eip, reg->esp);
+    PANIC("page failure error in eip = 0x%p, esp = 0x%p\n", reg->eip, reg->esp);
 }
 
 void init_memory()
@@ -92,7 +92,7 @@ void init_memory()
 
     register_interrupt(14, page_failure_isr);
 
-    LOG("kernel stack top addr = %p\n", KERNEL_STACK_TOP);
+    LOG("kernel stack top addr = 0x%p\n", KERNEL_STACK_TOP);
     LOG("memory hook page failure\n");
 }
 

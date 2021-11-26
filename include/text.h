@@ -3,10 +3,9 @@
 
 #include <types.h>
 
-char *to_dec_string(int decimal_number);
-char *to_udec_string(uint32_t decimal_number);
-char *to_oct_string(uint32_t decimal_number);
-char *to_hex_string(uint32_t decimal_number, bool_t sign);
-char *to_bin_string(uint32_t decimal_number);
+int base10_string(uint32_t number, unsigned char sign, char dst[]);
+int base8_string(uint32_t number, unsigned char sign, char dst[]);
+int base16_string(uint32_t number, unsigned char sign, char dst[]);
+int base2_string(uint32_t number, unsigned char sign, char dst[]);
 
 #endif

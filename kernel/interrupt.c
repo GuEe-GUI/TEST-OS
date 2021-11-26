@@ -146,7 +146,7 @@ void init_idt(void)
     /* 加载IDTR */
     __asm__ volatile ("lidtl (idtr)");
 
-    LOG("load idtr limite = %d, base = %p\n", idtr.limite, idtr.base);
+    LOG("load idtr limite = %d, base = 0x%p\n", idtr.limite, idtr.base);
 }
 
 void init_8259a(void)

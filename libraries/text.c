@@ -1,140 +1,116 @@
 #include <text.h>
 
-char *to_dec_string(int decimal_number)
+int base10_string(uint32_t number, unsigned char sign, char dst[])
 {
-    static char result[34];
-
-    char result_tmp[32];
+    char tmp[32];
     int i = 0, j = 0;
 
-    if (decimal_number < 0)
+    if (sign && (int)number < 0)
     {
-        result[i++] = '-';
-        decimal_number = -decimal_number;
+        dst[i++] = '-';
+        number &= 0x7fffffff;
     }
 
-    while (decimal_number > 0)
+    while (number > 0)
     {
-        *(result_tmp + j) = '0' + (decimal_number % 10);
+        *(tmp + j) = '0' + (number % 10);
         ++j;
-        decimal_number /= 10;
+        number /= 10;
     }
 
-    for (--j; j >= 0; result[i++] = result_tmp[j--]) {}
+    for (--j; j >= 0; dst[i++] = tmp[j--]) {}
 
     if (i == 0)
     {
-        result[i++] = '0';
+        dst[i++] = '0';
     }
 
-    result[i] = '\0';
+    dst[i] = '\0';
 
-    return result;
+    return i;
 }
 
-char *to_udec_string(uint32_t decimal_number)
+int base8_string(uint32_t number, unsigned char sign, char dst[])
 {
-    static char result[34];
-
-    char result_tmp[32];
+    char tmp[32];
     int i = 0, j = 0;
 
-    while (decimal_number > 0)
+    if (sign && (int)number < 0)
     {
-        *(result_tmp + j) = '0' + (decimal_number % 10);
+        dst[i++] = '-';
+        number &= 0x7fffffff;
+    }
+
+    while (number > 0)
+    {
+        *(tmp + j) = '0' + (number % 8);
         ++j;
-        decimal_number /= 10;
+        number >>= 3;
     }
 
-    for (--j; j >= 0; result[i++] = result_tmp[j--]) {}
+    for (--j; j >= 0; dst[i++] = tmp[j--]) {}
 
-    if (i == 0)
-    {
-        result[i++] = '0';
-    }
-
-    result[i] = '\0';
-
-    return result;
+    return i;
 }
 
-char *to_oct_string(uint32_t decimal_number)
+int base16_string(uint32_t number, unsigned char sign, char dst[])
 {
-    static char result[34];
-
-    char result_tmp[32];
-    int i = 0, j = 0;
-
-    result[i++] = '0';
-
-    while (decimal_number > 0)
-    {
-        *(result_tmp + j) = '0' + (decimal_number % 8);
-        ++j;
-        decimal_number >>= 3;
-    }
-
-    for (--j; j >= 0; result[i++] = result_tmp[j--]) {}
-
-    return result;
-}
-
-char *to_hex_string(uint32_t decimal_number, bool_t sign)
-{
-    static char result[35];
     const char hex_char[16] =
     {
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
     };
 
-    char result_tmp[32];
+    char tmp[32];
     int i = 0, j = 0;
 
-    if (sign == true)
+    if (sign && (int)number < 0)
     {
-        result[i++] = '0';
-        result[i++] = 'x';
+        dst[i++] = '-';
+        number &= 0x7fffffff;
     }
 
-    if (decimal_number == 0)
+    if (number == 0)
     {
-        result[i++] = '0';
+        dst[i++] = '0';
     }
     else
     {
-        while (decimal_number > 0)
+        while (number > 0)
         {
-            *(result_tmp + j) = hex_char[decimal_number % 16];
+            *(tmp + j) = hex_char[number % 16];
             ++j;
-            decimal_number >>= 4;
+            number >>= 4;
         }
     }
 
-    for (--j; j >= 0; result[i++] = result_tmp[j--]) {}
+    for (--j; j >= 0; dst[i++] = tmp[j--]) {}
 
-    result[i] = '\0';
+    dst[i] = '\0';
 
-    return result;
+    return i;
 }
 
-char *to_bin_string(uint32_t decimal_number)
+int base2_string(uint32_t number, unsigned char sign, char dst[])
 {
-    static char result[34];
-
-    char result_tmp[32];
+    char tmp[32];
     int i = 0, j = 0;
 
-    while (decimal_number > 0)
+    if (sign && (int)number < 0)
     {
-        *(result_tmp + j) = (decimal_number % 2) ? '1' : '0';
-        ++j;
-        decimal_number >>= 1;
+        dst[i++] = '-';
+        number &= 0x7fffffff;
     }
 
-    for (--j; j >= 0; result[i++] = result_tmp[j--]) {}
+    while (number > 0)
+    {
+        *(tmp + j) = (number % 2) ? '1' : '0';
+        ++j;
+        number >>= 1;
+    }
 
-    result[i++] = 'b';
-    result[i]   = '\0';
+    for (--j; j >= 0; dst[i++] = tmp[j--]) {}
 
-    return result;
+    dst[i]   = '\0';
+
+    return i;
 }

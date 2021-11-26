@@ -8,7 +8,6 @@ int printk(const char *fmt, ...)
     int string_length = 0;
     /* 多线程下不允许使用static */
     char result[2048] = {0};
-    char* string_tmp = NULL;
     va_list arg_ptr;
 
     va_start(arg_ptr, fmt);
@@ -27,38 +26,27 @@ int printk(const char *fmt, ...)
         {
         case 'd': case 'D':
         {
-            string_tmp = to_dec_string(va_arg(arg_ptr, int));
-            while (*string_tmp) result[string_length++] = *(string_tmp++);
+            string_length += base10_string(va_arg(arg_ptr, int), 0, &result[string_length]);
             break;
         }
         case 'u': case 'U':
         {
-            string_tmp = to_udec_string(va_arg(arg_ptr, int));
-            while (*string_tmp) result[string_length++] = *(string_tmp++);
+            string_length += base10_string(va_arg(arg_ptr, int), 1, &result[string_length]);
             break;
         }
-        case 'x': case 'X':
+        case 'x': case 'p': case 'X':
         {
-            string_tmp = to_hex_string(va_arg(arg_ptr, int), false);
-            while (*string_tmp) result[string_length++] = *(string_tmp++);
-            break;
-        }
-        case 'p':
-        {
-            string_tmp = to_hex_string(va_arg(arg_ptr, int), true);
-            while (*string_tmp) result[string_length++] = *(string_tmp++);
+            string_length += base16_string(va_arg(arg_ptr, int), 0, &result[string_length]);
             break;
         }
         case 'b': case 'B':
         {
-            string_tmp = to_bin_string(va_arg(arg_ptr, int));
-            while (*string_tmp) result[string_length++] = *(string_tmp++);
+            string_length += base2_string(va_arg(arg_ptr, int), 0, &result[string_length]);
             break;
         }
         case 'o': case 'O':
         {
-            string_tmp = to_oct_string(va_arg(arg_ptr, int));
-            while (*string_tmp) result[string_length++] = *(string_tmp++);
+            string_length += base8_string(va_arg(arg_ptr, int), 0, &result[string_length]);
             break;
         }
         case 'c': case 'C':
@@ -68,10 +56,10 @@ int printk(const char *fmt, ...)
         }
         case 's': case 'S':
         {
-            string_tmp = va_arg(arg_ptr, char*);
-            while (*string_tmp)
+            char *str = va_arg(arg_ptr, char*);
+            while (*str)
             {
-                result[string_length++] = *string_tmp++;
+                result[string_length++] = *str++;
             }
             break;
         }

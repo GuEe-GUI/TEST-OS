@@ -19,7 +19,7 @@ static struct
 
 void init_console(uint32_t width, uint32_t height)
 {
-    int i, j, k;
+    int i, j, k = 0;
 
     /*
      * @@@@@@..@@@@@@...@@@@...@@@@@@...@@@@....@@@@.

@@ -1,12 +1,11 @@
 #include <timer.h>
 #include <kernel.h>
-#include <string.h>
 #include <console.h>
 #include <interrupt.h>
 #include <text.h>
 #include <thread.h>
 
-static uint32_t tick_val = 0;
+static volatile uint32_t tick_val = 0;
 static const uint32_t tick_frequency = KERNEL_TICK_HZ;
 
 static uint32_t tick_to_millisecond()
@@ -118,9 +117,10 @@ void print_tick()
     uint32_t second = current_tick / 1000;
     uint32_t msecond = current_tick - second * 1000;
     size_t tick_str_len = 12;
+    char string[34];
 
-    tick_str_len -= strlen(to_dec_string(second));
-    tick_str_len -= strlen(to_dec_string(msecond));
+    tick_str_len -= base10_string(second, 0, string);
+    tick_str_len -= base10_string(msecond, 0, string);
 
     if (msecond < 100)
     {
