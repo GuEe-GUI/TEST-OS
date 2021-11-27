@@ -10,7 +10,7 @@
 
 static struct thread *thread_head[THREAD_STATUS_SIZE] = {NULL};
 static struct thread *current_thread = NULL, *fix_next_thread = NULL;
-static tid_t tid_bitmap[KERNEL_THREAD_MAX / TID_BIT_NR] = {1}; /* 0号tid为缺省值 */
+static tid_t tid_bitmap[KERNEL_THREAD_MAX / TID_BIT_NR] = {1};  /* 0号tid为缺省值 */
 
 extern void switch_to_next_thread(void *prev, void *next);
 
@@ -51,6 +51,11 @@ void __attribute__((noreturn)) start_thread(void *thread_list)
 {
     tid_t tid;
     struct thread *thread_cleaner = (struct thread *)malloc(KERNEL_THREAD_STACK_SIZE);
+
+    if (ARRAY_SIZE(tid_bitmap) > 1)
+    {
+        memset((void *)&tid_bitmap[1], 0, sizeof(tid_bitmap) - sizeof(tid_bitmap[0]));
+    }
 
     if ((thread_head[THREAD_READY] = thread_cleaner) == NULL)
     {
@@ -220,7 +225,7 @@ finsh:
 
 struct thread *thread_current()
 {
-    ASSERT(current_thread);
+    ASSERT(current_thread != NULL);
 
     return current_thread;
 }

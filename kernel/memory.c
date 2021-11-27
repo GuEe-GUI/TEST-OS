@@ -62,7 +62,7 @@ static inline void memory_remap()
         /* 页目录[31:22]，设置当前基地址对应的页表项 */
         dir_paddr[map_vaddr >> 22] = (uint32_t)tbl_paddr | KERNEL_PAGE_ATTR;
 
-        /* 填写每个页表项，1024（4KB / sizeof(void*)）个entry */
+        /* 填写每个页表项，1024（4KB / sizeof(void *)）个entry */
         for (j = 0; j < 1024; ++j)
         {
             /* 页表[21:12]，映射4K物理地址 */

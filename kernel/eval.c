@@ -1,3 +1,4 @@
+#include <console.h>
 #include <device.h>
 #include <eval.h>
 #include <kernel.h>
@@ -41,10 +42,8 @@ finsh:
     {
         i = 0;
 
-        set_color(EVAL_COLOR_INFO, CONSOLE_CLEAR);
-        printk("eval>");
-        set_color(CONSOLE_FILL, CONSOLE_CLEAR);
-        printk(" ");
+        console_out("eval>", EVAL_COLOR_INFO, CONSOLE_CLEAR);
+        console_out(" ", CONSOLE_FILL, CONSOLE_CLEAR);
 
         for (;;)
         {

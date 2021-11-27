@@ -86,12 +86,12 @@ void irq_handler(struct registers *registers)
 
 void init_idt(void)
 {
-    memset((uint8_t*)&interrupt_handlers, 0, sizeof(interrupt_handler) << 8);
+    memset((void *)interrupt_handlers, 0, sizeof(interrupt_handler));
 
     idtr.limite = (sizeof(struct idt) << 8) - 1;
     idtr.base  = (uint32_t)&idt;
 
-    memset((uint8_t*)&idt, 0, sizeof(struct idt) << 8);
+    memset((void *)idt, 0, sizeof(idt));
 
     init_idt_descriptor(0x08, (uint32_t)isr0,  INT_GATE, &idt[0]);
     init_idt_descriptor(0x08, (uint32_t)isr1,  INT_GATE, &idt[1]);

@@ -29,14 +29,29 @@ int printk(const char *fmt, ...)
             string_length += base10_string(va_arg(arg_ptr, int), 0, &result[string_length]);
             break;
         }
-        case 'u': case 'U':
-        {
-            string_length += base10_string(va_arg(arg_ptr, int), 1, &result[string_length]);
-            break;
-        }
         case 'x': case 'p': case 'X':
         {
             string_length += base16_string(va_arg(arg_ptr, int), 0, &result[string_length]);
+            break;
+        }
+        case 's': case 'S':
+        {
+            char *str = va_arg(arg_ptr, char *);
+            while (*str)
+            {
+                result[string_length++] = *str++;
+            }
+            break;
+        }
+        case 'c': case 'C':
+        {
+            /* 如果是0输出会被截断，因此用空格代替 */
+            char ch = (char)va_arg(arg_ptr, int);
+            if (ch == 0)
+            {
+                ch = ' ';
+            }
+            result[string_length++] = ch;
             break;
         }
         case 'b': case 'B':
@@ -44,23 +59,14 @@ int printk(const char *fmt, ...)
             string_length += base2_string(va_arg(arg_ptr, int), 0, &result[string_length]);
             break;
         }
+        case 'u': case 'U':
+        {
+            string_length += base10_string(va_arg(arg_ptr, int), 1, &result[string_length]);
+            break;
+        }
         case 'o': case 'O':
         {
             string_length += base8_string(va_arg(arg_ptr, int), 0, &result[string_length]);
-            break;
-        }
-        case 'c': case 'C':
-        {
-            result[string_length++] = (char)va_arg(arg_ptr, int);
-            break;
-        }
-        case 's': case 'S':
-        {
-            char *str = va_arg(arg_ptr, char*);
-            while (*str)
-            {
-                result[string_length++] = *str++;
-            }
             break;
         }
         case '%':
