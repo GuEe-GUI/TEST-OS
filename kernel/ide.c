@@ -161,9 +161,10 @@ static void ata_rw_pio(int LBA, void *buffer, int sector_count, int pio_flag)
     }
     else if (sector_count == 256)
     {
-        sector_count = 0; // 0 represnts 256 sectors
+        sector_count = 0;
     }
-    while (io_in8(bus + ATA_REG_STATUS) & ATA_SR_BSY) {} // Wait for ATA_SR_BSY to be zero.
+    /* 判断等待状态 */
+    while (io_in8(bus + ATA_REG_STATUS) & ATA_SR_BSY) {}
 
     io_out8(bus + ATA_REG_HDDEVSEL, 0xE0 | (driver << 4) | ((LBA >> 24) & 0x0F));
     io_out8(bus + ATA_REG_SECCOUNT0, (unsigned char) sector_count);
