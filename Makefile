@@ -7,7 +7,7 @@ KERNEL_SECTORS       = 348
 KERNEL_LINKER_ADDR   = 0x80100000
 
 CROSS_COMPILE := x86_64-elf-
-RAM	          := 128
+RAM           := 128
 
 AS = nasm
 CC = $(CROSS_COMPILE)gcc
