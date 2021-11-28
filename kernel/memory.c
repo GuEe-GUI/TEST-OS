@@ -90,7 +90,7 @@ void init_memory()
     init_ards();
     memory_remap();
 
-    register_interrupt(14, page_failure_isr);
+    interrupt_register(14, page_failure_isr);
 
     LOG("kernel stack top addr = 0x%p\n", KERNEL_STACK_TOP);
     LOG("memory hook page failure\n");

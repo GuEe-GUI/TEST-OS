@@ -126,9 +126,9 @@ extern void irq15(void);
 
 typedef void (*interrupt_handler)(struct registers *);
 
-void register_interrupt(uint8_t vector, interrupt_handler handler);
-void enable_interrupt(uint8_t vector);
-void disable_interrupt(uint8_t vector);
+void interrupt_register(uint8_t vector, interrupt_handler handler);
+void interrupt_enable(uint8_t vector);
+void interrupt_disable(uint8_t vector);
 void init_idt(void);
 
 /* 8259a-总 */

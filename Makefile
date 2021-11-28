@@ -4,10 +4,10 @@ LOAD_SECTORS         = 8
 KERNEL_SECTOR_OFFEST = 9
 KERNEL_SECTORS       = 348
 
-KERNEL_USING_RAM_MB  = 128
 KERNEL_LINKER_ADDR   = 0x80100000
 
 CROSS_COMPILE := x86_64-elf-
+RAM	          := 128
 
 AS = nasm
 CC = $(CROSS_COMPILE)gcc
@@ -47,6 +47,8 @@ OBJS = \
 	bitmap.o\
 	keyboard.o\
 	ide.o\
+	disk.o\
+	fat32.o\
 	thread.o\
 	eval.o\
 	cmds.o\
@@ -72,10 +74,10 @@ $(FAT_FS_IMG):
 	@qemu-img create $@ 64M -q
 
 run: $(TEST_OS_IMG) $(FAT_FS_IMG)
-	@echo [QEMU] RAM=$(KERNEL_USING_RAM_MB)MB $<
+	@echo [QEMU] RAM=$(RAM)MB $<
 	@qemu-system-i386 \
 		-name "TEST OS" \
-		-m $(KERNEL_USING_RAM_MB) \
+		-m $(RAM) \
 		-rtc base=localtime \
 		-drive file=$(FAT_FS_IMG),format=raw,if=ide \
 		-boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy

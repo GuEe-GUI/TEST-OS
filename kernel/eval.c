@@ -11,7 +11,7 @@ extern void eval_void_start();
 static char cmdline_buffer[EVAL_CHAR_MAX];
 static char *cmdline_args[EVAL_ARGS_MAX];
 
-EVAL_VOID(help, "display this information")(int argc, char**argv)
+EVAL_VOID(help, "Display this information")(int argc, char**argv)
 {
     int cmdline_len;
     struct eval_void *node = (struct eval_void *)&eval_void_start;

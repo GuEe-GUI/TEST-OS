@@ -16,12 +16,12 @@ static void init_idt_descriptor(uint16_t segment_selector, uint32_t offset, uint
     idt->offset16_31 = (offset & 0xffff0000) >> 16;
 }
 
-void register_interrupt(uint8_t vector, interrupt_handler handler)
+void interrupt_register(uint8_t vector, interrupt_handler handler)
 {
     interrupt_handlers[vector] = handler;
 }
 
-void enable_interrupt(uint8_t vector)
+void interrupt_enable(uint8_t vector)
 {
     static uint16_t ocw1 = 0xFF;
 
@@ -38,7 +38,7 @@ void enable_interrupt(uint8_t vector)
     }
 }
 
-void disable_interrupt(uint8_t vector)
+void interrupt_disable(uint8_t vector)
 {
     static uint16_t ocw1 = 0xFF;
 

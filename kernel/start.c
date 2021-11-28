@@ -1,6 +1,7 @@
 #include <bitmap.h>
 #include <console.h>
 #include <device.h>
+#include <disk.h>
 #include <eval.h>
 #include <malloc.h>
 #include <memory.h>
@@ -23,6 +24,7 @@ void __attribute__((noreturn)) entry(void)
     init_bitmap(get_total_memory_bytes());
     init_rtc();
     init_ide();
+    init_disk();
 
     start_thread((void *[])
     {

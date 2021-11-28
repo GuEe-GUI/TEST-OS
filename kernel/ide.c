@@ -1,19 +1,20 @@
 #include <device.h>
-#include <interrupt.h>
+#include <disk.h>
 #include <io.h>
 #include <kernel.h>
-#include <malloc.h>
-#include <thread.h>
 
 /* ATA */
-#define ATA_DRIVER_MASTER       0x00
-#define ATA_DRIVER_SLAVE        0x01
+#define ATA_TYPE_MASTER         0x00
+#define ATA_TYPE_SLAVE          0x01
 
-#define ATA_PRIMARY_CMD_BASE    0x1f0
-#define ATA_SECONDARY_CMD_BASE  0x170
+#define ATA_DRIVE_MASTER        0xA0
+#define ATA_DRIVE_SLAVE         0xB0
 
-#define ATA_PRIMARY_CTL_PRI     0x3f6
-#define ATA_SECONDARY_CTL_PRI   0x376
+#define ATA_BUS_PRIMARY         0x1f0
+#define ATA_BUS_SECONDARY       0x170
+
+#define ATA_CTL_PRI_PRIMARY     0x3f6
+#define ATA_CTL_PRI_SECONDARY   0x376
 
 #define ATA_REG_DATA            0x00
 #define ATA_REG_ERROR           0x01
@@ -33,8 +34,8 @@
 #define ATA_REG_ALTSTATUS       0x0C
 #define ATA_REG_DEVADDRESS      0x0D
 
-#define ATA_READ_PIO_FLAG       0x00
-#define ATA_WRITE_PIO_FLAG      0x01
+#define ATA_PIO_FLAG_READ       0x00
+#define ATA_PIO_FLAG_WRITE      0x01
 
 #define ATA_CMD_READ_PIO        0x20
 #define ATA_CMD_READ_PIO_EXT    0x24
@@ -61,99 +62,37 @@
 #define ATA_SR_IDX              0x02    /* Index */
 #define ATA_SR_ERR              0x01    /* Error */
 
-#define IDE_NAME(driver, bus)   \
-    (driver == ATA_DRIVER_MASTER ? "master" : "slave"), \
-    (bus == ATA_PRIMARY_CMD_BASE ? "primary" : "secondary")
+#define IDE_NAME(type, bus)   \
+    (type == ATA_TYPE_MASTER ? "master" : "slave"), \
+    (bus == ATA_BUS_PRIMARY ? "primary" : "secondary")
 
 /* SATA */
-#define SATA_LBAMID_PRI     0x1f4
-#define SATA_LBAHI_PRI      0x1f5
-#define SATA_INT_GET_RET    0x3c
+#define SATA_LBAMID_PRI         0x1f4
+#define SATA_LBAHI_PRI          0x1f5
+#define SATA_INT_GET_RET        0x3c
 
 struct ide
 {
-    uint8_t driver;
+    uint8_t type;
+    uint8_t drive;
     uint16_t bus;
     uint16_t ctrl;
 };
 
 static struct ide ide_devices[4] =
 {
-    { .driver = ATA_DRIVER_MASTER, .bus = ATA_PRIMARY_CMD_BASE,   .ctrl = ATA_PRIMARY_CTL_PRI   },
-    { .driver = ATA_DRIVER_SLAVE,  .bus = ATA_PRIMARY_CMD_BASE,   .ctrl = ATA_PRIMARY_CTL_PRI   },
-    { .driver = ATA_DRIVER_MASTER, .bus = ATA_SECONDARY_CMD_BASE, .ctrl = ATA_SECONDARY_CTL_PRI },
-    { .driver = ATA_DRIVER_SLAVE,  .bus = ATA_SECONDARY_CMD_BASE, .ctrl = ATA_SECONDARY_CTL_PRI },
+    { .type = ATA_TYPE_MASTER, .drive = ATA_DRIVE_MASTER, .bus = ATA_BUS_PRIMARY,   .ctrl = ATA_CTL_PRI_PRIMARY   },
+    { .type = ATA_TYPE_SLAVE,  .drive = ATA_DRIVE_SLAVE,  .bus = ATA_BUS_PRIMARY,   .ctrl = ATA_CTL_PRI_PRIMARY   },
+    { .type = ATA_TYPE_MASTER, .drive = ATA_DRIVE_MASTER, .bus = ATA_BUS_SECONDARY, .ctrl = ATA_CTL_PRI_SECONDARY },
+    { .type = ATA_TYPE_SLAVE,  .drive = ATA_DRIVE_SLAVE,  .bus = ATA_BUS_SECONDARY, .ctrl = ATA_CTL_PRI_SECONDARY },
 };
-static struct ide *ide_ata_device = NULL;
 
-int ide_identify(struct ide *ide_device)
-{
-    int status, i;
-    uint8_t driver = ide_device->driver;
-    uint16_t bus = ide_device->bus;
-    uint16_t identify_data[256] __attribute__((unused));
-
-    status = io_in8(bus + ATA_REG_STATUS);
-
-    io_out8(bus + ATA_REG_HDDEVSEL, 0xA0 | driver << 4);
-    io_out8(bus + ATA_REG_SECCOUNT0, 0);
-    io_out8(bus + ATA_REG_LBA0, 0);
-    io_out8(bus + ATA_REG_LBA1, 0);
-    io_out8(bus + ATA_REG_LBA2, 0);
-    io_out8(bus + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
-
-    if ((status = io_in8(bus + ATA_REG_STATUS)) == 0)
-    {
-        LOG("ide[%s:%s] does not exist\n", IDE_NAME(driver, bus));
-        return -1;
-    }
-
-    while ((status = io_in8(bus + ATA_REG_STATUS)) & ATA_SR_BSY) {}
-
-    if (io_in8(bus + ATA_REG_LBA1) == 0 && io_in8(bus + ATA_REG_LBA2) == 0)
-    {
-        while (!((status = io_in8(bus + ATA_REG_STATUS)) & ATA_SR_DRQ) && !(status & ATA_SR_ERR)) {}
-
-        if (status & ATA_SR_ERR)
-        {
-            LOG("ide[%s:%s] using ata init fail\n", IDE_NAME(driver, bus));
-            return -1;
-        }
-
-        for (i = 0; i < 256; i++)
-        {
-            identify_data[i] = io_in16(bus + ATA_REG_DATA);
-        }
-
-        ide_ata_device = ide_device;
-
-        LOG("ide[%s:%s] using ata is ready\n", IDE_NAME(driver, bus));
-
-        return 0;
-    }
-    else if (io_in8(SATA_LBAMID_PRI) == SATA_INT_GET_RET || io_in8(SATA_LBAHI_PRI) == SATA_INT_GET_RET)
-    {
-        LOG("ide[%s:%s] using %s is not supported yet\n", IDE_NAME(driver, bus), "sata");
-
-        return -1;
-    }
-    else
-    {
-        LOG("ide[%s:%s] using %s is not supported yet\n", IDE_NAME(driver, bus), "atapi");
-
-        return -1;
-    }
-
-    return 0;
-}
-
-static void ata_rw_pio(int LBA, void *buffer, int sector_count, int pio_flag)
+static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, int sector_count, int pio_flag)
 {
     int status, i, j;
-    uint8_t driver = ide_ata_device->driver;
+    uint8_t type = ide_ata_device->type;
     uint16_t bus = ide_ata_device->bus;
     uint16_t ctrl = ide_ata_device->ctrl;
-    uint16_t *data;
 
     if (sector_count > 256)
     {
@@ -166,14 +105,14 @@ static void ata_rw_pio(int LBA, void *buffer, int sector_count, int pio_flag)
     /* 判断等待状态 */
     while (io_in8(bus + ATA_REG_STATUS) & ATA_SR_BSY) {}
 
-    io_out8(bus + ATA_REG_HDDEVSEL, 0xE0 | (driver << 4) | ((LBA >> 24) & 0x0F));
+    io_out8(bus + ATA_REG_HDDEVSEL, 0xE0 | (type << 4) | ((LBA >> 24) & 0x0F));
     io_out8(bus + ATA_REG_SECCOUNT0, (unsigned char) sector_count);
     io_out8(bus + ATA_REG_LBA0, (unsigned char) LBA);
     io_out8(bus + ATA_REG_LBA1, (unsigned char) (LBA >> 8));
     io_out8(bus + ATA_REG_LBA2, (unsigned char) (LBA >> 16));
     int cmd = (sector_count == 1) ? ATA_CMD_READ_PIO :  ATA_CMD_READ_MULTIPLE;
 
-    if (pio_flag == ATA_WRITE_PIO_FLAG)
+    if (pio_flag == ATA_PIO_FLAG_WRITE)
     {
         cmd = (sector_count == 1) ? ATA_CMD_WRITE_PIO :  ATA_CMD_WRITE_MULTIPLE;
     }
@@ -183,7 +122,6 @@ static void ata_rw_pio(int LBA, void *buffer, int sector_count, int pio_flag)
     {
         sector_count = 256;
     }
-    data = buffer;
 
     for (j = 0; j < sector_count; j++)
     {
@@ -196,38 +134,103 @@ static void ata_rw_pio(int LBA, void *buffer, int sector_count, int pio_flag)
 
         if ((status & ATA_SR_ERR) || (status & ATA_SR_DF))
         {
-            printk("ata %s %d sectors from [%s:%s] fail\n", pio_flag == ATA_WRITE_PIO_FLAG ? "write" : "read", sector_count, IDE_NAME(driver, bus));
+            printk("ata %s %d sectors from [%s:%s] fail\n", pio_flag == ATA_PIO_FLAG_WRITE ? "write" : "read", sector_count, IDE_NAME(type, bus));
             return;
         }
 
-        for (i = 0; i < 256; i++, data++)
+        for (i = 0; i < 256; ++i, ++buffer)
         {
-            if (pio_flag == ATA_WRITE_PIO_FLAG)
+            if (pio_flag == ATA_PIO_FLAG_WRITE)
             {
-                io_out16(bus + ATA_REG_DATA, *data);
+                io_out16(bus + ATA_REG_DATA, *buffer);
             }
             else
             {
-                *data = io_in16(bus + ATA_REG_DATA);
+                *buffer = io_in16(bus + ATA_REG_DATA);
             }
         }
-        if (pio_flag == ATA_WRITE_PIO_FLAG)
+        if (pio_flag == ATA_PIO_FLAG_WRITE)
         {
             io_out8(bus + ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
         }
     }
 }
 
-void ata_read(int sector_number, void *buffer, int sector_count)
+static int ata_read(struct disk *disk, int sector_number, void *buffer, int sector_count)
 {
-    ASSERT(ide_ata_device != NULL);
-    ata_rw_pio(sector_number, buffer, sector_count, ATA_READ_PIO_FLAG);
+    ata_rw_pio((struct ide *)disk->device, sector_number, buffer, sector_count, ATA_PIO_FLAG_READ);
+
+    return sector_count * 512;
 }
 
-void ata_write(int sector_number, void *buffer, int sector_count)
+static int ata_write(struct disk *disk, int sector_number, void *buffer, int sector_count)
 {
-    ASSERT(ide_ata_device != NULL);
-    ata_rw_pio(sector_number, buffer, sector_count, ATA_WRITE_PIO_FLAG);
+    ata_rw_pio((struct ide *)disk->device, sector_number, buffer, sector_count, ATA_PIO_FLAG_WRITE);
+
+    return sector_count * 512;
+}
+
+int ide_identify(struct ide *ide_device)
+{
+    int status, i;
+    uint8_t type = ide_device->type;
+    uint16_t bus = ide_device->bus;
+    uint16_t identify_data[256] __attribute__((unused));
+
+    status = io_in8(bus + ATA_REG_STATUS);
+
+    io_out8(bus + ATA_REG_HDDEVSEL, 0xA0 | type << 4);
+    io_out8(bus + ATA_REG_SECCOUNT0, 0);
+    io_out8(bus + ATA_REG_LBA0, 0);
+    io_out8(bus + ATA_REG_LBA1, 0);
+    io_out8(bus + ATA_REG_LBA2, 0);
+    io_out8(bus + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
+
+    if ((status = io_in8(bus + ATA_REG_STATUS)) == 0)
+    {
+        LOG("ide[%s:%s] does not exist\n", IDE_NAME(type, bus));
+
+        return -1;
+    }
+
+    while ((status = io_in8(bus + ATA_REG_STATUS)) & ATA_SR_BSY) {}
+
+    if (io_in8(bus + ATA_REG_LBA1) == 0 && io_in8(bus + ATA_REG_LBA2) == 0)
+    {
+        while (!((status = io_in8(bus + ATA_REG_STATUS)) & ATA_SR_DRQ) && !(status & ATA_SR_ERR)) {}
+
+        if (status & ATA_SR_ERR)
+        {
+            LOG("ide[%s:%s] using ata init fail\n", IDE_NAME(type, bus));
+
+            return -1;
+        }
+
+        for (i = 0; i < 256; i++)
+        {
+            identify_data[i] = io_in16(bus + ATA_REG_DATA);
+        }
+
+        disk_register("ata ide", &ata_read, &ata_write, ide_device);
+
+        LOG("ide[%s:%s] using ata is ready\n", IDE_NAME(type, bus));
+
+        return 0;
+    }
+    else if (io_in8(SATA_LBAMID_PRI) == SATA_INT_GET_RET || io_in8(SATA_LBAHI_PRI) == SATA_INT_GET_RET)
+    {
+        LOG("ide[%s:%s] using %s is not supported yet\n", IDE_NAME(type, bus), "sata");
+
+        return -1;
+    }
+    else
+    {
+        LOG("ide[%s:%s] using %s is not supported yet\n", IDE_NAME(type, bus), "atapi");
+
+        return -1;
+    }
+
+    return 0;
 }
 
 void init_ide()

@@ -31,8 +31,8 @@ void init_timer()
     /* Intel 8253/8254 每秒中断次数 */
     uint32_t divisor = (CLOCK_TICK_RATE + tick_frequency / 2) / tick_frequency;
 
-    register_interrupt(IRQ_0, timer_isr);
-    enable_interrupt(IRQ_0);
+    interrupt_register(IRQ_0, timer_isr);
+    interrupt_enable(IRQ_0);
 
     /*
      *  0011 0110
