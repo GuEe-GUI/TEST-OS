@@ -40,6 +40,12 @@ void *bitmap_malloc(size_t size)
 
     cli();
 
+    /* 原则上参数为0默认申请一个字节 */
+    if (size == 0)
+    {
+        size = 1;
+    }
+
     i = size;
     size /= (4 * KB);
     if (i % (4 * KB) != 0)
@@ -171,11 +177,11 @@ void print_mem()
         }
     }
 
+    sti();
+
     total = total * (4 * KB * 8) / KB;
     used  = used  * (4 * KB) / KB;
     free  = free  * (4 * KB) / KB;
 
     printk("mem (KB): %d total, %d free, %d used\n", total, free, used);
-
-    sti();
 }

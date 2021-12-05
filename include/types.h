@@ -27,6 +27,7 @@ typedef signed short        int16_t;
 typedef signed char         int8_t;
 
 typedef unsigned long       size_t;
+typedef unsigned long       intptr_t;
 
 #define KB 1024
 #define MB (1024 * KB)
@@ -36,5 +37,18 @@ typedef unsigned long       size_t;
 
 #define PTR_LIST(ptr, ...) (void *[]){ptr, ##__VA_ARGS__}
 #define PTR_LIST_ITEM(list, n) ((void **)list)[n]
+
+#define IS_POWER_OF_2(val) (val > 0 && (val & (val - 1)) == 0)
+
+#define INTEGER_SWAP(a, b) \
+{ \
+    a ^= b; \
+    b ^= a; \
+    a ^= b; \
+}
+
+#define TO_LOWER(ch) (ch | ' ')
+#define TO_UPPER(ch) (ch & '_')
+#define TO_CAPS(ch)  (ch ^ ' ')
 
 #endif

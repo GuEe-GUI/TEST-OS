@@ -16,6 +16,20 @@ EVAL_VOID(cls, "Clear console")(int argc, char**argv)
     console_cls();
 }
 
+EVAL_VOID(powerdown, "Machine power down")(int argc, char**argv)
+{
+    cli();
+
+    LOG("machine power down");
+
+    /* QEMU (newer) */
+    __asm__ volatile ("outw %%ax, %%dx"::"d"(0x604), "a"(0x2000));
+    /* QEMU (2.0)， bochs */
+    __asm__ volatile ("outw %%ax, %%dx"::"d"(0xb004), "a"(0x2000));
+
+    PANIC("powerdown fail\n");
+}
+
 EVAL_VOID(rtc, "Get rtc time")(int argc, char**argv)
 {
     struct rtc_time *time = read_rtc();
@@ -154,10 +168,10 @@ EVAL_VOID(disk, "Disk control")(int argc, char**argv)
 {
     if (argc < 2 || argv[1][0] != '-' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
     {
-        printk("Usage: disk [options] [disk name]\nOptions:\n");
+        printk("Usage: disk [options] [disk id]\nOptions:\n");
         printk("  -f [type]\tFormat a disk with file system of type\n");
         printk("  -d\t\tGet details of disk\n");
-        printk("  -l\t\tList all disks info (without disk name)\n");
+        printk("  -l\t\tList all disks info (without disk id)\n");
         return;
     }
 
@@ -169,7 +183,7 @@ EVAL_VOID(disk, "Disk control")(int argc, char**argv)
     else if (argc < 3)
     {
 no_disk_name:
-        printk("no input disk name\n");
+        printk("no input disk id\n");
         return;
     }
 
@@ -181,12 +195,12 @@ no_disk_name:
         {
             goto no_disk_name;
         }
-        disk_format(argv[3][0], argv[2]);
+        disk_format((uint32_t)argv[3], argv[2]);
         break;
     }
     case 'd':
     {
-        print_disk(argv[2][0]);
+        print_disk((uint32_t)argv[2]);
         break;
     }
     default:
@@ -199,20 +213,6 @@ no_disk_name:
     return;
 }
 
-EVAL_VOID(powerdown, "Machine power down")(int argc, char**argv)
-{
-    cli();
-
-    LOG("machine power down");
-
-    /* QEMU (newer) */
-    __asm__ volatile ("outw %%ax, %%dx"::"d"(0x604), "a"(0x2000));
-    /* QEMU (2.0)， bochs */
-    __asm__ volatile ("outw %%ax, %%dx"::"d"(0xb004), "a"(0x2000));
-
-    PANIC("powerdown fail\n");
-}
-
 EVAL_VOID(md, "Make a directory")(int argc, char**argv)
 {
 }
@@ -222,6 +222,10 @@ EVAL_VOID(dir, "Display files in this directory")(int argc, char**argv)
 }
 
 EVAL_VOID(rename, "Rename a file/directory")(int argc, char**argv)
+{
+}
+
+EVAL_VOID(cd, "Change directory")(int argc, char**argv)
 {
 }
 

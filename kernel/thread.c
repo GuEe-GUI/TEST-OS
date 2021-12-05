@@ -234,12 +234,12 @@ void thread_wake(tid_t tid)
 {
     struct thread *prev;
     struct thread *node;
-    int find_from_waiting = 0;
+    int find_from_suspend = 0;
 
     cli();
 
     if (!thread_find_by_tid(tid, THREAD_READY, &prev, &node) ||
-        (find_from_waiting = 1, !thread_find_by_tid(tid, THREAD_WAITING, &prev, &node)))
+        (find_from_suspend = 1, !thread_find_by_tid(tid, THREAD_SUSPEND, &prev, &node)))
     {
         if (prev != NULL)
         {
@@ -247,10 +247,10 @@ void thread_wake(tid_t tid)
         }
         else
         {
-            if (find_from_waiting)
+            if (find_from_suspend)
             {
-                /* 节点为thread_head[THREAD_WAITING] */
-                thread_head[THREAD_WAITING] = node->next;
+                /* 节点为thread_head[THREAD_SUSPEND] */
+                thread_head[THREAD_SUSPEND] = node->next;
             }
             else
             {
@@ -310,9 +310,9 @@ void thread_suspend(tid_t tid)
             fix_next_thread = thread_head[THREAD_RUNNING];
         }
 
-        node->status = THREAD_WAITING;
-        node->next = thread_head[THREAD_WAITING];
-        thread_head[THREAD_WAITING] = node;
+        node->status = THREAD_SUSPEND;
+        node->next = thread_head[THREAD_SUSPEND];
+        thread_head[THREAD_SUSPEND] = node;
 
         if (tid == current->tid)
         {
@@ -339,7 +339,7 @@ void thread_wait(tid_t tid)
 
     /* 不在THREAD_DIED中搜索，进入THREAD_DIED后ref值不再改变，以防止死锁发生 */
     if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node) ||
-        !thread_find_by_tid(tid, THREAD_WAITING, &prev, &node))
+        !thread_find_by_tid(tid, THREAD_SUSPEND, &prev, &node))
     {
         ++(node->ref);
 
@@ -357,6 +357,7 @@ void thread_exit(tid_t tid)
 {
     struct thread *node;
     struct thread *prev;
+    int find_from_suspend = 0;
 
     /* thread cleaner不能结束 */
     if (tid == 0)
@@ -366,7 +367,8 @@ void thread_exit(tid_t tid)
 
     cli();
 
-    if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node))
+    if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node) ||
+        (find_from_suspend = 1, !thread_find_by_tid(tid, THREAD_SUSPEND, &prev, &node)))
     {
         struct thread *current = thread_current();
 
@@ -376,14 +378,29 @@ void thread_exit(tid_t tid)
         }
         else
         {
-            /* node节点为thread_head[THREAD_RUNNING] */
-            thread_head[THREAD_RUNNING] = node->next;
+            if (find_from_suspend)
+            {
+                /* 节点为thread_head[THREAD_SUSPEND] */
+                thread_head[THREAD_SUSPEND] = node->next;
+            }
+            else
+            {
+                /* node节点为thread_head[THREAD_RUNNING] */
+                thread_head[THREAD_RUNNING] = node->next;
+            }
         }
 
         /* 如果是当前线程暂停自己就要进行切换修复 */
         if (tid == current->tid && (fix_next_thread = node->next) == NULL)
         {
             fix_next_thread = thread_head[THREAD_RUNNING];
+        }
+
+        /* 确认线程是否使用sleep睡眠 */
+        if (node->status == THREAD_SUSPEND && node->wake_millisecond != 0 && node->ref > 0)
+        {
+            /* 使用sleep的线程ref大于0，要减一才可能被清理 */
+            --(node->ref);
         }
 
         node->status = THREAD_DIED;
@@ -416,7 +433,7 @@ void print_thread()
     {
         [THREAD_RUNNING] = "running",
         [THREAD_READY] = "ready",
-        [THREAD_WAITING] = "waiting",
+        [THREAD_SUSPEND] = "suspend",
         [THREAD_DIED] = "died"
     };
 
@@ -449,8 +466,6 @@ void print_thread()
         }
         ++status;
     }
-
-    node = thread_head[status];
 
     sti();
 }

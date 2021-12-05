@@ -9,12 +9,19 @@ KERNEL_LINKER_ADDR   = 0x80100000
 CROSS_COMPILE := x86_64-elf-
 RAM           := 128
 
+ifeq ($(OS),Windows_NT)
+	ADMIN_NAME = $(shell whoami | sed 's/.*\\\\\(.*\\)/\\1/')
+else
+	ADMIN_NAME = $(shell echo $$USER)
+endif
+
 AS = nasm
 CC = $(CROSS_COMPILE)gcc
 LD = $(CROSS_COMPILE)ld
 
 BUILD_DIR = build
 
+ADMIN_CFG   = $(BUILD_DIR)/admin.cfg
 BOOT_BIN    = $(BUILD_DIR)/boot.bin
 LOADER_BIN  = $(BUILD_DIR)/loader.bin
 KERNEL_FILE = $(BUILD_DIR)/kernel.elf
@@ -23,10 +30,8 @@ FAT_FS_IMG  = FAT-FS.img
 
 MODE := __DEBUG__
 
-ASM_KERNEL_FLAGS = -f elf32
-C_KERNEL_FLAGS = -O1 -Iinclude -Ikernel -m32 -D$(MODE) -Wall -nostdlib -fno-builtin -fno-leading-underscore
-CPP_KERNEL_FLAGS = -Wno-unused-command-line-argument -ffreestanding -fno-cxx-exceptions -fno-exceptions -fno-rtti -fno-unwind-tables -ibuiltininc -nogpulib -nostdlib
-
+ASM_FLAGS = -f elf32
+C_FLAGS = -O1 -Iinclude -Ikernel -m32 -D$(MODE) -Wall -nostdlib -fno-builtin -fno-leading-underscore
 LD_FLAGS = -m elf_i386 -e _start -Ttext $(KERNEL_LINKER_ADDR)
 
 OBJS = \
@@ -59,7 +64,7 @@ OBJS := $(addprefix $(BUILD_DIR)/,${OBJS})
 
 all: $(shell mkdir -p $(BUILD_DIR)) $(TEST_OS_IMG) run
 
-$(TEST_OS_IMG): $(BOOT_BIN) $(LOADER_BIN) $(KERNEL_FILE)
+$(TEST_OS_IMG): $(ADMIN_CFG) $(BOOT_BIN) $(LOADER_BIN) $(KERNEL_FILE)
 	@echo [QEMU] $@
 	@qemu-img create $@ 1440K -q
 	@echo [DD] $(BOOT_BIN)
@@ -88,6 +93,10 @@ clean:
 	@echo [RM] $(TEST_OS_IMG)
 	@rm -f $(TEST_OS_IMG)
 
+$(ADMIN_CFG):
+	@echo $(ADMIN_NAME) > $@
+	@sed -i 's/^#define OS_ADMIN_NAME.*$$/#define OS_ADMIN_NAME   "$(ADMIN_NAME)"/g' include/version.h
+
 $(BUILD_DIR)/%.bin: boot/%.asm
 	@echo [AS] $<
 	@$(AS) -o $@ $<
@@ -98,9 +107,9 @@ $(KERNEL_FILE): $(OBJS)
 
 $(BUILD_DIR)/%.o: */%.asm
 	@echo [AS] $<
-	@$(AS) $(ASM_KERNEL_FLAGS) -o $@ $<
+	@$(AS) $(ASM_FLAGS) -o $@ $<
 
 -include $(BUILD_DIR)/*.d
 $(BUILD_DIR)/%.o: */%.c
 	@echo [CC] $<
-	@$(CC) -MMD $(C_KERNEL_FLAGS) -c $< -o $@
+	@$(CC) -MMD $(C_FLAGS) -c $< -o $@

@@ -7,4 +7,6 @@
 #define OS_OWNER_YEAR   (&__DATE__[sizeof(__DATE__) / sizeof(char) - sizeof("1979")])
 #define OS_OWNER_NAME   "GuEe Studio"
 
+#define OS_ADMIN_NAME   "gui"
+
 #endif

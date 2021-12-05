@@ -24,9 +24,9 @@ void handler
 #define EVAL_CHAR_MAX   1024
 #define EVAL_ARGS_MAX   32
 
-#define EVAL_COLOR_INFO  0x1583d7ff
-#define EVAL_COLOR_WARN  0xffc107ff
-#define EVAL_COLOR_ERROR 0xf44336ff
+#define EVAL_COLOR_INFO     0x1583d7ff
+#define EVAL_COLOR_WARN     0xffc107ff
+#define EVAL_COLOR_ERROR    0xf44336ff
 
 void eval();
 

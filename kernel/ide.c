@@ -62,14 +62,16 @@
 #define ATA_SR_IDX              0x02    /* Index */
 #define ATA_SR_ERR              0x01    /* Error */
 
-#define IDE_NAME(type, bus)   \
-    (type == ATA_TYPE_MASTER ? "master" : "slave"), \
-    (bus == ATA_BUS_PRIMARY ? "primary" : "secondary")
-
 /* SATA */
 #define SATA_LBAMID_PRI         0x1f4
 #define SATA_LBAHI_PRI          0x1f5
 #define SATA_INT_GET_RET        0x3c
+
+#define IDE_INFO_BLOCK_SIZE     512
+
+#define IDE_NAME(type, bus)   \
+    (type == ATA_TYPE_MASTER ? "master" : "slave"), \
+    (bus == ATA_BUS_PRIMARY ? "primary" : "secondary")
 
 struct ide
 {
@@ -156,18 +158,18 @@ static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, in
     }
 }
 
-static int ata_read(struct disk *disk, int sector_number, void *buffer, int sector_count)
+static size_t ata_read(struct disk *disk, size_t sector_number, void *buffer, int sector_count)
 {
     ata_rw_pio((struct ide *)disk->device, sector_number, buffer, sector_count, ATA_PIO_FLAG_READ);
 
-    return sector_count * 512;
+    return sector_count * IDE_INFO_BLOCK_SIZE;
 }
 
-static int ata_write(struct disk *disk, int sector_number, void *buffer, int sector_count)
+static size_t ata_write(struct disk *disk, size_t sector_number, void *buffer, int sector_count)
 {
     ata_rw_pio((struct ide *)disk->device, sector_number, buffer, sector_count, ATA_PIO_FLAG_WRITE);
 
-    return sector_count * 512;
+    return sector_count * IDE_INFO_BLOCK_SIZE;
 }
 
 int ide_identify(struct ide *ide_device)
@@ -176,6 +178,7 @@ int ide_identify(struct ide *ide_device)
     uint8_t type = ide_device->type;
     uint16_t bus = ide_device->bus;
     uint16_t identify_data[256] __attribute__((unused));
+    struct disk *disk;
 
     status = io_in8(bus + ATA_REG_STATUS);
 
@@ -211,11 +214,22 @@ int ide_identify(struct ide *ide_device)
             identify_data[i] = io_in16(bus + ATA_REG_DATA);
         }
 
-        disk_register("ata ide", &ata_read, &ata_write, ide_device);
+        disk = disk_register("ata ide", &ata_read, &ata_write, ide_device);
 
-        LOG("ide[%s:%s] using ata is ready\n", IDE_NAME(type, bus));
+        if (disk != NULL)
+        {
+            uint32_t cylinders = identify_data[1];
+            uint32_t heads = identify_data[3];
+            uint32_t sector_count = identify_data[6];
 
-        return 0;
+            disk->total = (cylinders * heads * sector_count / 2048 + 1) * MB;
+
+            LOG("ide[%s:%s] using ata is ready\n", IDE_NAME(type, bus));
+
+            return 0;
+        }
+
+        return -1;
     }
     else if (io_in8(SATA_LBAMID_PRI) == SATA_INT_GET_RET || io_in8(SATA_LBAHI_PRI) == SATA_INT_GET_RET)
     {

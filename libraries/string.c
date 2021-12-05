@@ -10,6 +10,11 @@ size_t strlen(const char *str)
 
 char strcmp(const char *str1, const char *str2)
 {
+    if (str1 == str2)
+    {
+        return 0;
+    }
+
     while (*str1 != 0 && *str1 == *str2)
     {
         str1++;
@@ -18,7 +23,7 @@ char strcmp(const char *str1, const char *str2)
     return *str1 < *str2 ? -1 : *str1 > *str2;
 }
 
-void *memcpy(void *dst, const void *src, uint8_t size)
+void *memcpy(void *dst, const void *src, size_t size)
 {
     char *d;
     const char *s;
@@ -61,7 +66,7 @@ void *memset(void *dst, uint32_t val, uint32_t size)
     return dst;
 }
 
-uint32_t memcmp(void *buf1,void *buf2, uint32_t size)
+uint32_t memcmp(const void *buf1, const void *buf2, uint32_t size)
 {
     while (size --> 0)
     {

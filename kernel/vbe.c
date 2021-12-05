@@ -103,17 +103,9 @@ void set_color(uint32_t color, uint32_t background)
 
 void set_color_invert()
 {
-    colors[2] ^= colors[5];
-    colors[5] ^= colors[2];
-    colors[2] ^= colors[5];
-
-    colors[1] ^= colors[4];
-    colors[4] ^= colors[1];
-    colors[1] ^= colors[4];
-
-    colors[0] ^= colors[3];
-    colors[3] ^= colors[0];
-    colors[0] ^= colors[3];
+    INTEGER_SWAP(colors[2], colors[5]);
+    INTEGER_SWAP(colors[1], colors[4]);
+    INTEGER_SWAP(colors[0], colors[3]);
 }
 
 void put_char(uint8_t n, int32_t x, int32_t y)

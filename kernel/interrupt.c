@@ -224,9 +224,6 @@ void print_interrupt()
         { NULL, reserved },
     }, *info;
 
-    /* 此处并不是为了防止资源抢占，而是为了提高屏幕输出线程的优先级 */
-    cli();
-
     set_color_invert();
     printk(" interrupt vector | type       | status | instructions                        ");
     set_color_invert();
@@ -273,6 +270,4 @@ print_continue:
         limite = ARRAY_SIZE(irq_info);
         goto print_continue;
     }
-
-    sti();
 }

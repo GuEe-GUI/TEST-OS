@@ -5,6 +5,7 @@
 #include <string.h>
 #include <thread.h>
 #include <timer.h>
+#include <version.h>
 
 extern void eval_void_start();
 
@@ -35,14 +36,16 @@ void eval()
     uint8_t ch;
     int i;
 
-    printk("Welcome to eval!\n\n");
+    printk("Welcome to eval v"OS_VERSION".\nType \"help\" for more information.\n\n");
 
 finsh:
     for (;;)
     {
         i = 0;
 
-        console_out("eval>", EVAL_COLOR_INFO, CONSOLE_CLEAR);
+        console_out(OS_ADMIN_NAME"@eval ", EVAL_COLOR_INFO, CONSOLE_CLEAR);
+        console_out("a:/", EVAL_COLOR_WARN, CONSOLE_CLEAR);
+        console_out(">", EVAL_COLOR_WARN, CONSOLE_CLEAR);
         console_out(" ", CONSOLE_FILL, CONSOLE_CLEAR);
 
         for (;;)

@@ -81,7 +81,7 @@ void sleeper_polling()
     for (;;)
     {
         struct thread *next;
-        struct thread *node = thread_list(THREAD_WAITING);
+        struct thread *node = thread_list(THREAD_SUSPEND);
         uint32_t min_wake_millisecond = ~0;
 
         while (node != NULL)
@@ -92,8 +92,12 @@ void sleeper_polling()
                 cli();
 
                 --(node->ref);
-                /* node唤醒后会切换为线程运行队列的第一个线程 */
-                thread_wake(node->tid);
+
+                if (node->status != THREAD_DIED)
+                {
+                    /* node唤醒后会切换为线程运行队列的第一个线程 */
+                    thread_wake(node->tid);
+                }
 
                 sti();
             }
