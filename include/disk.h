@@ -28,7 +28,7 @@ struct disk
     struct disk *next;
 };
 
-struct disk *disk_register(char *name, size_t (*device_read)(), size_t (*device_write)(), void *device);
+struct disk *disk_register(char *name);
 void disk_format(uint32_t id, char *fs_type);
 void init_disk();
 void print_disk(uint32_t disk_id);

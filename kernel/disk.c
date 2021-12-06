@@ -27,7 +27,7 @@ static struct disk *find_disk_by_id(uint32_t id)
     return NULL;
 }
 
-struct disk *disk_register(char *name, size_t (*device_read)(), size_t (*device_write)(), void *device)
+struct disk *disk_register(char *name)
 {
     static union
     {
@@ -41,7 +41,6 @@ struct disk *disk_register(char *name, size_t (*device_read)(), size_t (*device_
         };
     } disk_id = { .all = KERNEL_DISK_ID_START };
     struct disk *new_disk;
-    int i;
 
     if (disk_id.all > KERNEL_DISK_ID_END)
     {
@@ -56,21 +55,13 @@ struct disk *disk_register(char *name, size_t (*device_read)(), size_t (*device_
     new_disk->free = 0;
     new_disk->used = 0;
     new_disk->ref = 0;
-    new_disk->device_read = device_read;
-    new_disk->device_write = device_write;
-    new_disk->device = device;
+    new_disk->device_read = NULL;
+    new_disk->device_write = NULL;
+    new_disk->device = NULL;
     new_disk->next = disk_list;
 
     disk_list = new_disk;
     ++(disk_id.number);
-
-    for (i = 0; i < ARRAY_SIZE(fs_opts); ++i)
-    {
-        if (!fs_opts[i].check(new_disk))
-        {
-            break;
-        }
-    }
 
     return new_disk;
 }
@@ -101,7 +92,7 @@ void disk_format(uint32_t id, char *fs_type)
     {
         if (!strcmp(fs_type, fs_opts[i].type))
         {
-            printk("disk `%s' format to %s %s\n", (char *)id, fs_type, fs_opts[i].format(disk) ? "fail" : "ok");
+            printk("disk `%s' format to `%s' %s\n", (char *)id, fs_type, fs_opts[i].format(disk) ? "fail" : "ok");
             return;
         }
     }
@@ -113,9 +104,17 @@ void init_disk()
 {
     struct disk *node = disk_list;
     size_t disk_number = 0;
+    int i;
 
     while (node != NULL)
     {
+        for (i = 0; i < ARRAY_SIZE(fs_opts); ++i)
+        {
+            if (!fs_opts[i].check(node))
+            {
+                break;
+            }
+        }
         ++disk_number;
         node = node->next;
     }

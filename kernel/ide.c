@@ -165,9 +165,9 @@ static size_t ata_read(struct disk *disk, size_t sector_number, void *buffer, in
     return sector_count * IDE_INFO_BLOCK_SIZE;
 }
 
-static size_t ata_write(struct disk *disk, size_t sector_number, void *buffer, int sector_count)
+static size_t ata_write(struct disk *disk, size_t sector_number, const void *buffer, int sector_count)
 {
-    ata_rw_pio((struct ide *)disk->device, sector_number, buffer, sector_count, ATA_PIO_FLAG_WRITE);
+    ata_rw_pio((struct ide *)disk->device, sector_number, (void *)buffer, sector_count, ATA_PIO_FLAG_WRITE);
 
     return sector_count * IDE_INFO_BLOCK_SIZE;
 }
@@ -214,7 +214,10 @@ int ide_identify(struct ide *ide_device)
             identify_data[i] = io_in16(bus + ATA_REG_DATA);
         }
 
-        disk = disk_register("ata ide", &ata_read, &ata_write, ide_device);
+        disk = disk_register("ata ide");
+        disk->device_read = &ata_read;
+        disk->device_write = &ata_write;
+        disk->device = ide_device;
 
         if (disk != NULL)
         {
