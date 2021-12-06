@@ -18,7 +18,8 @@ const struct eval_void eval_void_##handler __attribute__((used,section(".eval_vo
     EVAL_VOID_MAGIC, \
     #handler, \
     info, \
-handler}; \
+    handler, \
+}; \
 void handler
 
 #define EVAL_CHAR_MAX   1024
