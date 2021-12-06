@@ -9,20 +9,6 @@
 #define FAT_EINVAL  3
 #define FAT_ENOSPC  4
 
-#define FAT_INVALID 3
-
-struct fat32_bpb_info
-{
-    uint8_t num_fats;
-    uint8_t media_type;
-    uint8_t sec_per_cluster;
-    uint16_t bytes_per_sec;
-    uint16_t reserved_sectors_count;
-    uint16_t root_entry_count;
-    uint32_t total_sectors;
-    uint32_t fat_size;
-};
-
 struct fat32_extended_bpb
 {
     uint32_t fat_sectors;
@@ -187,11 +173,39 @@ static uint8_t calc_cluster_size(uint16_t bytes)
     return sec_per_cluster;
 }
 
-static inline int write_boot_sector(struct disk *disk, uint8_t *buffer, struct fat32_bpb_info *info)
+/* Microsoft Extensible Firmware Initiative FAT32 File System Specification (PDF) */
+int fat32_format(struct disk *disk)
 {
-    uint32_t type;
-    uint32_t num_sectors = (disk->total - MB) / MB;
-    uint16_t type_sec_per_cluster =
+#define FAT_INVALID 3
+    int i, j;
+    uint8_t buffer[512];
+    struct fat32_bpb_info
+    {
+        uint8_t num_fats;
+        uint8_t media_type;
+        uint8_t sec_per_cluster;
+        uint16_t bytes_per_sec;
+        uint16_t reserved_sectors_count;
+        uint16_t root_entry_count;
+        uint32_t total_sectors;
+        uint32_t fat_size;
+    } info;
+    uint32_t first_data_sector;
+    uint32_t fsi_free_count = 0;
+    uint32_t fsi_nxt_free = 0;
+    uint32_t num_sectors;
+    uint16_t type_sec_per_cluster;
+    uint8_t sectors_per_cluster;
+
+    if (disk->fs != NULL)
+    {
+        free(disk->fs);
+    }
+
+    memset(buffer, 0, 512);
+
+    num_sectors = disk->total / 512;
+    type_sec_per_cluster =
         ({
             uint64_t vol_size = num_sectors;
             uint16_t result = FAT_INVALID << 8;
@@ -222,12 +236,11 @@ static inline int write_boot_sector(struct disk *disk, uint8_t *buffer, struct f
             }
             result;
         });
-    uint8_t sectors_per_cluster = (uint8_t)type_sec_per_cluster;
+    sectors_per_cluster = (uint8_t)type_sec_per_cluster;
 
-    info->fat_size = 0;
-    type = (uint8_t)(type_sec_per_cluster >> 8);
+    info.fat_size = 0;
 
-    if (type == FAT_INVALID)
+    if ((uint8_t)(type_sec_per_cluster >> 8) == FAT_INVALID)
     {
         return -1;
     }
@@ -241,24 +254,24 @@ static inline int write_boot_sector(struct disk *disk, uint8_t *buffer, struct f
     /* BPB_BytsPerSec */
     buffer[0x0B] = (uint8_t)512;
     buffer[0x0C] = (uint8_t)(512 >> 8);
-    info->bytes_per_sec = 512;
+    info.bytes_per_sec = 512;
 
     /* BPB_SecPerClus */
     buffer[0x0D] = sectors_per_cluster;
-    info->sec_per_cluster = sectors_per_cluster;
+    info.sec_per_cluster = sectors_per_cluster;
 
     /* BPB_RsvdSecCnt */
     buffer[0x0E] = 32;
     buffer[0x0F] = 0;
-    info->reserved_sectors_count = 32;
+    info.reserved_sectors_count = 32;
 
     /* BPB_NumFATs */
     buffer[0x10] = 2;
-    info->num_fats = 2;
+    info.num_fats = 2;
 
     /* BPB_RootEntCnt */
     buffer[0x11] = buffer[0x12] = 0;
-    info->root_entry_count = 0;
+    info.root_entry_count = 0;
 
     /* BPB_TotSec16 */
     if (num_sectors < 0x10000)
@@ -270,17 +283,17 @@ static inline int write_boot_sector(struct disk *disk, uint8_t *buffer, struct f
     {
         buffer[0x13] = buffer[0x14] = 0;
     }
-    info->total_sectors = num_sectors;
+    info.total_sectors = num_sectors;
 
     /* BPB_Media */
     buffer[0x15] = 0xF8;
-    info->media_type = 0xF8;
+    info.media_type = 0xF8;
 
-    info->fat_size =
+    info.fat_size =
         ({
-            uint16_t root_dir_sectors = ((info->root_entry_count * 32) + (info->bytes_per_sec - 1)) / info->bytes_per_sec;
-            uint32_t tmp_val1 = info->total_sectors - (info->reserved_sectors_count + root_dir_sectors);
-            uint32_t tmp_val2 = (256UL * info->sec_per_cluster) + info->num_fats;
+            uint16_t root_dir_sectors = ((info.root_entry_count * 32) + (info.bytes_per_sec - 1)) / info.bytes_per_sec;
+            uint32_t tmp_val1 = info.total_sectors - (info.reserved_sectors_count + root_dir_sectors);
+            uint32_t tmp_val2 = (256UL * info.sec_per_cluster) + info.num_fats;
 
             tmp_val2 /= 2;
 
@@ -306,17 +319,17 @@ static inline int write_boot_sector(struct disk *disk, uint8_t *buffer, struct f
     }
     else
     {
-        buffer[0x20] = (uint8_t)info->total_sectors;
-        buffer[0x21] = (uint8_t)(info->total_sectors >> 8);
-        buffer[0x22] = (uint8_t)(info->total_sectors >> 16);
-        buffer[0x23] = (uint8_t)(info->total_sectors >> 24);
+        buffer[0x20] = (uint8_t)info.total_sectors;
+        buffer[0x21] = (uint8_t)(info.total_sectors >> 8);
+        buffer[0x22] = (uint8_t)(info.total_sectors >> 16);
+        buffer[0x23] = (uint8_t)(info.total_sectors >> 24);
     }
 
     /* BPB_FATSz32 */
-    buffer[0x24] = (uint8_t)info->fat_size;
-    buffer[0x25] = (uint8_t)(info->fat_size >> 8);
-    buffer[0x26] = (uint8_t)(info->fat_size >> 16);
-    buffer[0x27] = (uint8_t)(info->fat_size >> 24);
+    buffer[0x24] = (uint8_t)info.fat_size;
+    buffer[0x25] = (uint8_t)(info.fat_size >> 8);
+    buffer[0x26] = (uint8_t)(info.fat_size >> 16);
+    buffer[0x27] = (uint8_t)(info.fat_size >> 24);
 
     /* BPB_ExtFlags */
     buffer[0x28] = buffer[0x29] = 0;
@@ -361,31 +374,6 @@ static inline int write_boot_sector(struct disk *disk, uint8_t *buffer, struct f
     buffer[0x1FF] = 0xAA;
 
     disk->device_write(disk, 0, buffer, 1);
-
-    return 0;
-}
-
-/* Microsoft Extensible Firmware Initiative FAT32 File System Specification (PDF) */
-int fat32_format(struct disk *disk)
-{
-    int i, j;
-    uint8_t buffer[512];
-    struct fat32_bpb_info info;
-    uint32_t first_data_sector;
-    uint32_t fsi_free_count = 0;
-    uint32_t fsi_nxt_free = 0;
-
-    if (disk->fs != NULL)
-    {
-        free(disk->fs);
-    }
-
-    memset(buffer, 0, 512);
-
-    if (write_boot_sector(disk, buffer, &info) != 0)
-    {
-        return -1;
-    }
 
     memset(buffer, 0, 512);
     /* media_type Copy */

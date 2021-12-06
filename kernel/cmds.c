@@ -225,7 +225,7 @@ EVAL_VOID(rename, "Rename a file/directory")(int argc, char**argv)
 {
 }
 
-EVAL_VOID(cd, "Change directory")(int argc, char**argv)
+EVAL_VOID(cd, "Change disk/directory")(int argc, char**argv)
 {
 }
 
