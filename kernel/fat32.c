@@ -96,6 +96,26 @@ struct fat32_file
     struct fat32_dir_entry dir_entry;
 };
 
+size_t fat32_file_read(struct disk *disk, void *file, void *buffer, size_t offset, size_t length)
+{
+    return 0;
+}
+
+size_t fat32_file_write(struct disk *disk, void *file, const void *buffer, size_t offset, size_t length)
+{
+    return 0;
+}
+
+int fat32_file_open(struct disk *disk, void *fs, const char *path, void *file)
+{
+    return 0;
+}
+
+int fat32_file_close(struct disk *disk, void *file)
+{
+    return 0;
+}
+
 int fat32_check(struct disk *disk)
 {
     uint32_t total_sectors;
@@ -133,6 +153,10 @@ int fat32_check(struct disk *disk)
 
     memcpy(disk->fs, &fs, sizeof(struct fat32_fs));
 
+    disk->fs_file_read = &fat32_file_read;
+    disk->fs_file_write = &fat32_file_write;
+    disk->fs_file_open = &fat32_file_open;
+    disk->fs_file_close = &fat32_file_close;
     disk->fs_type = "fat32";
     disk->fs_filesize = sizeof(struct fat32_file);
 
@@ -454,14 +478,4 @@ int fat32_format(struct disk *disk)
     }
 
     return fat32_check(disk);;
-}
-
-size_t fat32_read(struct disk *disk, uint64_t start, size_t size, void *buffer)
-{
-    return 0;
-}
-
-size_t fat32_write(struct disk *disk, size_t size, const void *buffer)
-{
-    return 0;
 }

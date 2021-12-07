@@ -57,7 +57,14 @@ struct disk *disk_register(char *name)
     new_disk->ref = 0;
     new_disk->device_read = NULL;
     new_disk->device_write = NULL;
+    new_disk->fs_file_read = NULL;
+    new_disk->fs_file_write = NULL;
+    new_disk->fs_file_open = NULL;
+    new_disk->fs_file_close = NULL;
     new_disk->device = NULL;
+    new_disk->fs = NULL;
+    new_disk->fs_type = NULL;
+    new_disk->fs_filesize = 0;
     new_disk->next = disk_list;
 
     disk_list = new_disk;
@@ -97,7 +104,7 @@ void disk_format(uint32_t id, char *fs_type)
         }
     }
 
-    printk("%s `%s'\n", "unknown file system", fs_type);
+    printk("%s `%s'\n", UNKNOWN_FS_TYPE, fs_type);
 }
 
 void init_disk()
@@ -150,7 +157,7 @@ void print_disk(uint32_t disk_id)
         {
             printk("id:\t\t\t %s\n", (char *)&node->id);
             printk("name:\t\t %s\n", node->name);
-            printk("fs type:\t %s\n", node->fs_type == NULL ? "unknown file system" : node->fs_type);
+            printk("fs type:\t %s\n", node->fs_type == NULL ? UNKNOWN_FS_TYPE : node->fs_type);
             printk("total:\t\t %d bytes\n", node->total);
             printk("free:\t\t %d bytes\n", node->free);
             printk("used:\t\t %d bytes\n", node->used);

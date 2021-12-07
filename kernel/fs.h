@@ -1,5 +1,7 @@
 #include <fat32.h>
 
+#define UNKNOWN_FS_TYPE "unknown file system"
+
 static struct
 {
     char *type;
