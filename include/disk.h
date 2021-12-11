@@ -21,7 +21,7 @@ struct disk
     size_t (*device_write)(struct disk *disk, size_t offset, const void *buffer, int count);
     size_t (*fs_file_read)(struct disk *disk, void *file, void *buffer, size_t offset, size_t length);
     size_t (*fs_file_write)(struct disk *disk, void *file, const void *buffer, size_t offset, size_t length);
-    int (*fs_file_open)(struct disk *disk, void *fs, const char *path, void *file);
+    void *(*fs_file_open)(struct disk *disk, void *fs, const char *path, void *file);
     int (*fs_file_close)(struct disk *disk, void *file);
 
     void *device;

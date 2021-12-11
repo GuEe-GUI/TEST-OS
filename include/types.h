@@ -6,15 +6,15 @@
 #endif
 
 #ifndef __cplusplus
-#define bool_t _Bool
-#define true   1
-#define false  0
+#define bool    _Bool
+#define true    1
+#define false   0
 #else
-#define _Bool  bool
-#define bool_t bool
-#define false  false
-#define true   true
-#endif
+#define _Bool   bool
+#define bool    bool
+#define false   false
+#define true    true
+#endif /* __cplusplus */
 
 typedef unsigned long long  uint64_t;
 typedef unsigned int        uint32_t;
@@ -26,8 +26,10 @@ typedef signed int          int32_t;
 typedef signed short        int16_t;
 typedef signed char         int8_t;
 
+typedef unsigned long       uintptr_t;
+typedef long                intptr_t;
+
 typedef unsigned long       size_t;
-typedef unsigned long       intptr_t;
 
 #define KB 1024
 #define MB (1024 * KB)

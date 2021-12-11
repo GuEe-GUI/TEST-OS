@@ -106,9 +106,9 @@ size_t fat32_file_write(struct disk *disk, void *file, const void *buffer, size_
     return 0;
 }
 
-int fat32_file_open(struct disk *disk, void *fs, const char *path, void *file)
+void *fat32_file_open(struct disk *disk, void *fs, const char *path, void *file)
 {
-    return 0;
+    return NULL;
 }
 
 int fat32_file_close(struct disk *disk, void *file)
@@ -121,6 +121,7 @@ int fat32_check(struct disk *disk)
     uint32_t total_sectors;
     uint32_t rootdir_sectors;
     uint32_t data_sectors;
+    uint32_t fsi_free_count;
     struct fat32_fs fs;
 
     if (!disk->device_read(disk, 0, &fs.bpb, 1) || fs.bpb.magic != 0xaa55)
@@ -159,6 +160,12 @@ int fat32_check(struct disk *disk)
     disk->fs_file_close = &fat32_file_close;
     disk->fs_type = "fat32";
     disk->fs_filesize = sizeof(struct fat32_file);
+
+    disk->device_read(disk, 1, &fs.bpb, 1);
+
+    fsi_free_count = *(uint32_t *)(&((uint8_t *)&fs.bpb)[488]);
+    disk->free = fsi_free_count * 512 * 8;
+    disk->used = disk->total - disk->free;
 
     return 0;
 }
@@ -477,5 +484,5 @@ int fat32_format(struct disk *disk)
         disk->device_write(disk, first_data_sector + i, buffer, 1);
     }
 
-    return fat32_check(disk);;
+    return fat32_check(disk);
 }
