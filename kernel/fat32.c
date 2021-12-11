@@ -220,7 +220,6 @@ int fat32_format(struct disk *disk)
     uint32_t total_sectors;
     uint32_t fat_size;
     uint32_t first_data_sector;
-    uint32_t fsi_free_count = 0;
     uint32_t fsi_nxt_free = 0;
     uint32_t num_sectors;
     uint32_t fat_invalid = 3;
@@ -446,11 +445,7 @@ int fat32_format(struct disk *disk)
     *((uint32_t *)&buffer[484]) = 0x61417272;
 
     /* FSI_Free_Count */
-    fsi_free_count = (total_sectors - ((fat_size * num_fats) + reserved_sectors_count)) / sec_per_cluster;
-    buffer[488] = (uint8_t)fsi_free_count;
-    buffer[489] = (uint8_t)(fsi_free_count >> 8);
-    buffer[490] = (uint8_t)(fsi_free_count >> 16);
-    buffer[491] = (uint8_t)(fsi_free_count >> 24);
+    *((uint32_t *)&buffer[488]) = (total_sectors - ((fat_size * num_fats) + reserved_sectors_count)) / sec_per_cluster;
 
     /* FSI_Nxt_Free */
     fsi_nxt_free = (reserved_sectors_count + (num_fats * fat_size));
@@ -462,16 +457,10 @@ int fat32_format(struct disk *disk)
     {
         fsi_nxt_free = (fsi_nxt_free / sec_per_cluster);
     }
-    buffer[492] = (uint8_t)fsi_nxt_free;
-    buffer[493] = (uint8_t)(fsi_nxt_free >> 8);
-    buffer[494] = (uint8_t)(fsi_nxt_free >> 16);
-    buffer[495] = (uint8_t)(fsi_nxt_free >> 24);
+    *((uint32_t *)&buffer[492]) = fsi_nxt_free;
 
     /* FSI_TrailSig */
-    buffer[508] = 0x00;
-    buffer[509] = 0x00;
-    buffer[510] = 0x55;
-    buffer[511] = 0xAA;
+    *((uint32_t *)&buffer[508]) = 0xAA550000;
 
     disk->device_write(disk, 1, buffer, 1);
 
