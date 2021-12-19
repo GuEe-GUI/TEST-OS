@@ -175,10 +175,22 @@ int fat32_check(struct disk *disk)
     uint32_t total_sectors;
     uint32_t rootdir_sectors;
     uint32_t data_sectors;
+    uint32_t fat_entry_size = 4;
+    uint32_t entries_count = 0;
+    uint32_t entries_end;
+    uint32_t free_entries_count = 0;
+    uint32_t fat_entry;
+    uint16_t sector_cur;
+    uint16_t sector_off;
     struct fat32_fs fs;
     struct fat32_fs_info fs_info;
 
     if (!disk->device_read(disk, 0, &fs.bpb, 1) || fs.bpb.magic != 0xaa55)
+    {
+        return -1;
+    }
+
+    if (fs.bpb.extended.boot_signature != 0x29)
     {
         return -1;
     }
@@ -217,18 +229,34 @@ int fat32_check(struct disk *disk)
     disk->fs_type = "fat32";
     disk->fs_filesize = sizeof(struct fat32_file);
 
-    if (fs.bpb.extended.boot_signature == 0x29)
-    {
-        disk->device_read(disk, 1, fs_info.buffer, 1);
+    entries_end = fs.bpb.extended.fat_sectors * fs.bpb.sector_size / fat_entry_size;
+    sector_cur = fs.bpb.reserved_sectors * fs.bpb.sector_size / fs.bpb.sector_size;
+    sector_off = fs.bpb.reserved_sectors * fs.bpb.sector_size % fs.bpb.sector_size;
 
-        disk->free = fs_info.free_clusters * 512;
-        disk->used = disk->total - disk->free;
-    }
-    else
+    disk->device_read(disk, sector_cur, fs_info.buffer, 1);
+
+    while (entries_count < entries_end)
     {
-        disk->free = 0;
-        disk->used = 0;
+        memcpy(&fat_entry, &fs_info.buffer[sector_off], fat_entry_size);
+
+        if (fat_entry == 0)
+        {
+            ++free_entries_count;
+        }
+
+        sector_off += fat_entry_size;
+        ++entries_count;
+
+        if (sector_off >= fs.bpb.sector_size)
+        {
+            ++sector_cur;
+            sector_off = 0;
+            disk->device_read(disk, sector_cur, fs_info.buffer, 1);
+        }
     }
+
+    disk->free = free_entries_count * fs.bpb.cluster_sectors * fs.bpb.sector_size;
+    disk->used = disk->total - disk->free;
 
     return 0;
 }
