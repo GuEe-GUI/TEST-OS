@@ -84,7 +84,7 @@ struct fat32_fs_info
             uint32_t signature1;
             uint8_t reserved1[480];
             uint32_t signature2;
-            uint32_t free_clusters;      /* free cluster count.  -1 if unknown */
+            uint32_t free_clusters;      /* free cluster count */
             uint32_t next_cluster;       /* most recently allocated cluster */
             uint8_t reserved2[12];
             uint32_t boot_sign;
@@ -301,7 +301,6 @@ int fat32_format(struct disk *disk)
     bpb.extended.version = 0;
     bpb.extended.rootdir_cluster = 2;
     bpb.extended.fs_info = 1;
-    /* set to 0 as we do not create a boot sectors copy yet */
     bpb.extended.boot_record_sectors = 6;
     memset(&bpb.extended.reserved[0], 0, 12);
     bpb.extended.drive_number = 0x80;
