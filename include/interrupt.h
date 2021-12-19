@@ -152,4 +152,4 @@ void init_idt(void);
 void init_8259a(void);
 void print_interrupt();
 
-#endif
+#endif /* _INTERRUPT_H_ */

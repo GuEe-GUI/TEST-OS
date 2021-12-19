@@ -37,4 +37,4 @@ do { \
 int printk(const char *fmt, ...);
 void __attribute__((noreturn)) assert(const char *file, uint32_t line, const char *func, const char *expression);
 
-#endif
+#endif /* _KERNEL_H_ */

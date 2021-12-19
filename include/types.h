@@ -3,7 +3,7 @@
 
 #ifndef NULL
 #define NULL ((void *)0)
-#endif
+#endif /* NULL */
 
 #ifndef __cplusplus
 #define bool    _Bool
@@ -30,6 +30,7 @@ typedef unsigned long       uintptr_t;
 typedef long                intptr_t;
 
 typedef unsigned long       size_t;
+typedef unsigned long       off_t;
 
 #define KB 1024
 #define MB (1024 * KB)
@@ -53,4 +54,4 @@ typedef unsigned long       size_t;
 #define TO_UPPER(ch) (ch & '_')
 #define TO_CAPS(ch)  (ch ^ ' ')
 
-#endif
+#endif /* _TYPES_H_ */

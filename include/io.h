@@ -33,4 +33,4 @@ static inline unsigned short inportw(unsigned short port)
     return ret;
 }
 
-#endif
+#endif /* _IO_H_ */

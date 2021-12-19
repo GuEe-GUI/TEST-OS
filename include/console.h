@@ -17,4 +17,4 @@ void console_out(const char *string, uint32_t color, uint32_t background);
 void console_roll(void);
 void console_cls(void);
 
-#endif
+#endif /* _CONSOLE_H_ */

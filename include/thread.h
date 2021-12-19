@@ -61,4 +61,4 @@ static inline void thread_yield()
     thread_schedule();
 }
 
-#endif
+#endif /* _THREAD_H_ */

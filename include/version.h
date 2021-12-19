@@ -9,4 +9,4 @@
 
 #define OS_ADMIN_NAME   "gui"
 
-#endif
+#endif /* _VERSION_H_ */

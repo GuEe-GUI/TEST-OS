@@ -78,7 +78,7 @@ uint32_t memcmp(const void *buf1, const void *buf2, uint32_t size)
     return 1;
 }
 
-void *memmove(void *dst, const void *src, size_t n)
+void *memmove(void *dst, const void *src, size_t size)
 {
     char *tmp;
     const char *s;
@@ -87,7 +87,7 @@ void *memmove(void *dst, const void *src, size_t n)
     {
         tmp = dst;
         s = src;
-        while (n--)
+        while (size--)
         {
             *tmp++ = *s++;
         }
@@ -95,10 +95,10 @@ void *memmove(void *dst, const void *src, size_t n)
     else
     {
         tmp = dst;
-        tmp += n;
+        tmp += size;
         s = src;
-        s += n;
-        while (n--)
+        s += size;
+        while (size--)
         {
             *--tmp = *--s;
         }
@@ -106,10 +106,10 @@ void *memmove(void *dst, const void *src, size_t n)
     return dst;
 }
 
-void *memchr(const void *buf, int c, size_t n)
+void *memchr(const void *buf, int c, size_t size)
 {
     char *p = (char *)buf;
-    char *end = p + n;
+    char *end = p + size;
 
     while (p != end)
     {

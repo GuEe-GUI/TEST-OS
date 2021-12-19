@@ -8,4 +8,4 @@ int base8_string(uint32_t number, unsigned char sign, char dst[]);
 int base16_string(uint32_t number, unsigned char sign, char dst[]);
 int base2_string(uint32_t number, unsigned char sign, char dst[]);
 
-#endif
+#endif /* _TEXT_H_ */

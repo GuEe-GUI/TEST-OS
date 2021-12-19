@@ -11,4 +11,5 @@
 [线程创建](doc/thread.md)
 
 ## 3、运行效果
-![运行效果](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/show.png "运行效果")
+![展示](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/show.png "展示")
+![帮助](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/help.png "帮助")

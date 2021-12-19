@@ -8,11 +8,18 @@ KERNEL_LINKER_ADDR   = 0x80100000
 
 CROSS_COMPILE := x86_64-elf-
 RAM           := 128
+DEBUG_MODE    := y
 
 ifeq ($(OS),Windows_NT)
 	ADMIN_NAME = $(shell whoami | sed 's/.*\\\\\(.*\\)/\\1/')
 else
 	ADMIN_NAME = $(shell echo $$USER)
+endif
+
+ifeq ($(DEBUG_MODE),y)
+	MODE = __DEBUG__
+else
+	MODE = __RELEASE__
 endif
 
 AS = nasm
@@ -27,8 +34,6 @@ LOADER_BIN  = $(BUILD_DIR)/loader.bin
 KERNEL_FILE = $(BUILD_DIR)/kernel.elf
 TEST_OS_IMG = TEST-OS.img
 FAT_FS_IMG  = FAT-FS.img
-
-MODE := __DEBUG__
 
 ASM_FLAGS = -f elf32
 C_FLAGS = -O1 -Iinclude -Ikernel -m32 -D$(MODE) -Wall -nostdlib -fno-builtin -fno-leading-underscore

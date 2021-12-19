@@ -69,7 +69,7 @@ void __attribute__((noreturn)) start_thread(void *thread_list)
     memcpy(thread_cleaner->name, "thread cleaner", sizeof("thread cleaner"));
 
     thread_wake(thread_cleaner->tid);
-    LOG("thread cleaner handler = 0x%p, tid = %d\n", thread_cleaner->handler, thread_cleaner->tid);
+    LOG("%s handler = 0x%p, tid = %d\n", thread_cleaner->name, thread_cleaner->handler, thread_cleaner->tid);
 
     if (thread_list != NULL)
     {

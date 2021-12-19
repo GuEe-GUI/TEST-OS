@@ -2,20 +2,7 @@
 #include <kernel.h>
 #include <rtc.h>
 
-#define CURRENT_YEAR 2020
-#define CENTURY_REG  0x00
-
 static struct rtc_time time;
-
-static inline void nmi_enable(void)
-{
-    io_out8(0x70, io_in8(0x70) & 0x7f);
-}
-
-static inline void nmi_disable(void)
-{
-    io_out8(0x70, io_in8(0x70) | 0x80);
-}
 
 void init_rtc()
 {
@@ -42,7 +29,7 @@ int get_update_in_progress_flag()
     return (io_in8(0x71) & 0x80);
 }
 
-unsigned char get_rtc_register(int reg)
+uint8_t get_rtc_register(int reg)
 {
     io_out8(0x70, reg);
     return io_in8(0x71);
@@ -50,29 +37,25 @@ unsigned char get_rtc_register(int reg)
 
 struct rtc_time *read_rtc()
 {
-    unsigned char century = 20;
-    unsigned char last_second;
-    unsigned char last_minute;
-    unsigned char last_hour;
-    unsigned char last_day;
-    unsigned char last_month;
-    unsigned char last_year;
-    unsigned char last_century;
-    unsigned char registerB;
+    uint8_t century;
+    uint8_t last_second;
+    uint8_t last_minute;
+    uint8_t last_hour;
+    uint8_t last_day;
+    uint8_t last_month;
+    uint8_t last_year;
+    uint8_t last_century;
+    uint8_t registerB;
 
     while (get_update_in_progress_flag()) {}
 
-    time.second = get_rtc_register(0x00);
-    time.minute = get_rtc_register(0x02);
-    time.hour = get_rtc_register(0x04);
-    time.day = get_rtc_register(0x07);
-    time.month = get_rtc_register(0x08);
-    time.year = get_rtc_register(0x09);
-
-    if (CENTURY_REG != 0)
-    {
-        century = get_rtc_register(CENTURY_REG);
-    }
+    time.second = get_rtc_register(CMOS_CUR_SEC);
+    time.minute = get_rtc_register(CMOS_CUR_MIN);
+    time.hour = get_rtc_register(CMOS_CUR_HOUR);
+    time.day = get_rtc_register(CMOS_MON_DAY);
+    time.month = get_rtc_register(CMOS_CUR_MON);
+    time.year = get_rtc_register(CMOS_CUR_YEAR);
+    century = get_rtc_register(CMOS_CUR_CEN);
 
     do {
         last_second = time.second;
@@ -85,18 +68,14 @@ struct rtc_time *read_rtc()
 
         while (get_update_in_progress_flag()) {}
 
-        time.second = get_rtc_register(0x00);
-        time.minute = get_rtc_register(0x02);
-        time.hour = get_rtc_register(0x04);
-        time.day = get_rtc_register(0x07);
-        time.month = get_rtc_register(0x08);
-        time.year = get_rtc_register(0x09);
-
-        if(CENTURY_REG != 0)
-        {
-            century = get_rtc_register(CENTURY_REG);
-        }
-    } while((last_second != time.second) ||
+        time.second = get_rtc_register(CMOS_CUR_SEC);
+        time.minute = get_rtc_register(CMOS_CUR_MIN);
+        time.hour = get_rtc_register(CMOS_CUR_HOUR);
+        time.day = get_rtc_register(CMOS_MON_DAY);
+        time.month = get_rtc_register(CMOS_CUR_MON);
+        time.year = get_rtc_register(CMOS_CUR_YEAR);
+        century = get_rtc_register(CMOS_CUR_CEN);
+    } while ((last_second != time.second) ||
             (last_minute != time.minute) ||
             (last_hour != time.hour) ||
             (last_day != time.day) ||
@@ -104,7 +83,7 @@ struct rtc_time *read_rtc()
             (last_year != time.year) ||
             (last_century != century));
 
-    registerB = get_rtc_register(0x0B);
+    registerB = get_rtc_register(CMOS_REG_B_SR);
 
     if (!(registerB & 0x04))
     {
@@ -114,11 +93,7 @@ struct rtc_time *read_rtc()
         time.day = (time.day & 0x0F) + ((time.day / 16) * 10);
         time.month = (time.month & 0x0F) + ((time.month / 16) * 10);
         time.year = (time.year & 0x0F) + ((time.year / 16) * 10);
-
-        if(CENTURY_REG != 0)
-        {
-            century = (century & 0x0F) + ((century / 16) * 10);
-        }
+        century = (century & 0x0F) + ((century / 16) * 10);
     }
 
     if (!(registerB & 0x02) && (time.hour & 0x80))
@@ -126,18 +101,29 @@ struct rtc_time *read_rtc()
         time.hour = ((time.hour & 0x7F) + 12) % 24;
     }
 
-    if(CENTURY_REG != 0)
-    {
-        time.year += century * 100;
-    }
-    else
-    {
-        time.year += (CURRENT_YEAR / 100) * 100;
-        if(time.year < CURRENT_YEAR)
-        {
-            time.year += 100;
-        }
-    }
+    time.year += century * 100;
 
     return &time;
+}
+
+unsigned long get_timestamp()
+{
+    read_rtc();
+
+    return to_timestamp(time.year, time.month, time.day, time.hour, time.minute, time.second);
+}
+
+unsigned long to_timestamp(uint32_t year, uint32_t month, uint32_t day, uint32_t hour, uint32_t minute, uint32_t second)
+{
+    if (0 >= (int)(month -= 2))
+    {
+        month += 12;
+        year -= 1;
+    }
+
+    return (((
+            (unsigned long)(year / 4 - year / 100 + year / 400 + 367 * month / 12 + day) + year * 365 - 719499
+            ) * 24 + hour
+        ) * 60 + minute
+    ) * 60 + second;
 }

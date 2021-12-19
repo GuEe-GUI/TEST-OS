@@ -18,4 +18,4 @@ void *bitmap_malloc(size_t size);
 void bitmap_free(void *addr);
 void print_mem();
 
-#endif
+#endif /* _BITMAP_H_ */

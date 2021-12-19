@@ -110,7 +110,7 @@ void disk_format(uint32_t id, char *fs_type)
 void init_disk()
 {
     struct disk *node = disk_list;
-    size_t disk_number = 0;
+    uint64_t disk_number = 0;
     int i;
 
     while (node != NULL)
@@ -128,14 +128,45 @@ void init_disk()
 
     if (disk_number > 0)
     {
-        uint32_t disk_id_start = KERNEL_DISK_ID_START;
-        uint32_t disk_id_end = KERNEL_DISK_ID_START + (disk_number - 1);
-        LOG("found %d disks[%s ~ %s]\n", disk_number, &disk_id_start, &disk_id_end);
+        i = KERNEL_DISK_ID_START + (uint16_t)(disk_number - 1);
+        disk_number <<= 32;
+        disk_number |= KERNEL_DISK_ID_START;
+        LOG("found %d disks start = \"%s\", end = \"%s\"\n", (uint32_t)(disk_number >> 32), &disk_number, &i);
     }
     else
     {
         LOG("found 0 disks\n");
     }
+}
+
+size_t disk_file_read(struct file *file, void *buffer, off_t offset, size_t length)
+{
+    return 0;
+}
+
+size_t disk_file_write(struct file *file, const void *buffer, off_t offset, size_t length)
+{
+    return 0;
+}
+
+void *disk_file_open(const char *path)
+{
+    return NULL;
+}
+
+int disk_file_close(struct file *file)
+{
+    return 0;
+}
+
+int disk_path_dir(const char *path)
+{
+    return 0;
+}
+
+int disk_fs_request(uint32_t disk_id, void *params)
+{
+    return 0;
 }
 
 void print_disk(uint32_t disk_id)
@@ -178,19 +209,40 @@ void print_disk(uint32_t disk_id)
         while (node != NULL)
         {
             printk(" %s\t\t |", &node->id);
-            len = printk(" %d", node->total / MB);
+            if (node->total > (1 * MB))
+            {
+                len = printk(" %d", node->total / MB);
+            }
+            else
+            {
+                len = printk("| 0 <=");
+            }
             while (len < 11)
             {
                 printk(" ");
                 ++len;
             }
-            len = printk("| %d", node->free / MB);
+            if (node->free > (1 * MB))
+            {
+                len = printk("| %d", node->free / MB);
+            }
+            else
+            {
+                len = printk("| 0 <=");
+            }
             while (len < 11)
             {
                 printk(" ");
                 ++len;
             }
-            len = printk("| %d", node->used / MB);
+            if (node->used > (1 * MB))
+            {
+                len = printk("| %d", node->used / MB);
+            }
+            else
+            {
+                len = printk("| 0 <=");
+            }
             while (len < 11)
             {
                 printk(" ");

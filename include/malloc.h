@@ -6,4 +6,4 @@
 #define malloc(size)    bitmap_malloc(size)
 #define free(addr)      bitmap_free(addr)
 
-#endif
+#endif /* _MALLOC_H_ */

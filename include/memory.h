@@ -51,4 +51,4 @@ struct ards
 void init_memory();
 uint32_t get_total_memory_bytes();
 
-#endif
+#endif /* _MEMORY_H_ */

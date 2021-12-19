@@ -47,4 +47,4 @@ void put_frame(int x, int y, int width, int height);
 void put_circle(int x, int y, int radius);
 void put_ring(int x, int y, int radius);
 
-#endif
+#endif /* _VBE_H_ */

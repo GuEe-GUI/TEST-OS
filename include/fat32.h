@@ -6,4 +6,4 @@
 int fat32_check(struct disk *disk);
 int fat32_format(struct disk *disk);
 
-#endif
+#endif /* _FAT32_H_ */

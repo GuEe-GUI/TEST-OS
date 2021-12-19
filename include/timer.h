@@ -12,4 +12,4 @@ void sleep(uint32_t millisecond);
 void sleeper_polling();
 void print_tick(void);
 
-#endif
+#endif /* _TIMER_H_ */
