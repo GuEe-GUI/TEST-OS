@@ -84,8 +84,8 @@ struct fat32_fs_info
             uint32_t signature1;
             uint8_t reserved1[480];
             uint32_t signature2;
-            uint32_t free_clusters;      /* free cluster count */
-            uint32_t next_cluster;       /* most recently allocated cluster */
+            uint32_t free_clusters; /* free cluster count */
+            uint32_t next_cluster;  /* most recently allocated cluster */
             uint8_t reserved2[12];
             uint32_t boot_sign;
         } __attribute__((packed));
@@ -145,27 +145,42 @@ struct fat32_file
     struct fat32_dir_entry dir_entry;
 };
 
-size_t fat32_file_read(struct disk *disk, void *file, void *buffer, off_t offset, size_t length)
-{
-    return 0;
-}
-
-size_t fat32_file_write(struct disk *disk, void *file, const void *buffer, off_t offset, size_t length)
-{
-    return 0;
-}
-
-void *fat32_file_open(struct disk *disk, const char *path)
+static void *fat32_file_open(struct disk *disk, const char *path)
 {
     return NULL;
 }
 
-int fat32_file_close(struct disk *disk, void *file)
+static int fat32_file_close(struct disk *disk, void *file)
 {
     return 0;
 }
 
-int fat32_path_dir(struct disk *disk, const char *path)
+static size_t fat32_file_read(struct disk *disk, void *file, void *buffer, off_t offset, size_t length)
+{
+    return 0;
+}
+
+static size_t fat32_file_write(struct disk *disk, void *file, const void *buffer, off_t offset, size_t length)
+{
+    return 0;
+}
+
+static int fat32_file_seek(struct disk *disk, void *file, off_t offset, int whence)
+{
+    return 0;
+}
+
+static void *fat32_dir_open(struct disk *disk, const char *path)
+{
+    return NULL;
+}
+
+static int fat32_dir_close(struct disk *disk, void *dir)
+{
+    return 0;
+}
+
+static int fat32_dir_read(struct disk *disk, void *dir, void *entry)
 {
     return 0;
 }
@@ -185,12 +200,12 @@ int fat32_check(struct disk *disk)
     struct fat32_fs fs;
     struct fat32_fs_info fs_info;
 
-    if (!disk->device_read(disk, 0, &fs.bpb, 1) || fs.bpb.magic != 0xaa55)
+    if (!disk->device_read(disk, 0, &fs.bpb, 1))
     {
         return -1;
     }
 
-    if (fs.bpb.extended.boot_signature != 0x29)
+    if (fs.bpb.magic != 0xaa55 || fs.bpb.extended.boot_signature != 0x29)
     {
         return -1;
     }
@@ -220,12 +235,14 @@ int fat32_check(struct disk *disk)
 
     memcpy(disk->fs, &fs, sizeof(struct fat32_fs));
 
-    disk->fs_file_read = &fat32_file_read;
-    disk->fs_file_write = &fat32_file_write;
     disk->fs_file_open = &fat32_file_open;
     disk->fs_file_close = &fat32_file_close;
-    disk->fs_path_dir = &fat32_path_dir;
-    disk->fs_request = NULL;
+    disk->fs_file_read = &fat32_file_read;
+    disk->fs_file_write = &fat32_file_write;
+    disk->fs_file_seek = &fat32_file_seek;
+    disk->fs_dir_open = &fat32_dir_open;
+    disk->fs_dir_close = &fat32_dir_close;
+    disk->fs_dir_read = &fat32_dir_read;
     disk->fs_type = "fat32";
     disk->fs_filesize = sizeof(struct fat32_file);
 

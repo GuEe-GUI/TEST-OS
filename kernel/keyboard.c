@@ -14,7 +14,7 @@
 static uint8_t chars_fifo[KEY_BUF_SIZE];
 static uint8_t cursor_in = 0, cursor_out = 1;
 
-static void keyboard_isr()
+static void keyboard_isr(struct registers *reg)
 {
     static uint32_t shift;
     static uint8_t *charcode[4] =

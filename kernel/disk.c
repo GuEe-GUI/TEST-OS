@@ -59,8 +59,13 @@ struct disk *disk_register(char *name)
     new_disk->device_write = NULL;
     new_disk->fs_file_read = NULL;
     new_disk->fs_file_write = NULL;
+    new_disk->fs_file_seek = NULL;
     new_disk->fs_file_open = NULL;
     new_disk->fs_file_close = NULL;
+    new_disk->fs_dir_open = NULL;
+    new_disk->fs_dir_close = NULL;
+    new_disk->fs_dir_read = NULL;
+    new_disk->fs_request = NULL;
     new_disk->device = NULL;
     new_disk->fs = NULL;
     new_disk->fs_type = NULL;
@@ -139,16 +144,6 @@ void init_disk()
     }
 }
 
-size_t disk_file_read(struct file *file, void *buffer, off_t offset, size_t length)
-{
-    return 0;
-}
-
-size_t disk_file_write(struct file *file, const void *buffer, off_t offset, size_t length)
-{
-    return 0;
-}
-
 void *disk_file_open(const char *path)
 {
     return NULL;
@@ -159,12 +154,37 @@ int disk_file_close(struct file *file)
     return 0;
 }
 
-int disk_path_dir(const char *path)
+size_t disk_file_read(struct file *file, void *buffer, off_t offset, size_t length)
 {
     return 0;
 }
 
-int disk_fs_request(uint32_t disk_id, void *params)
+size_t disk_file_write(struct file *file, const void *buffer, off_t offset, size_t length)
+{
+    return 0;
+}
+
+int fs_file_seek(void *file, off_t offset, int whence)
+{
+    return 0;
+}
+
+void *disk_dir_open(struct disk *disk, const char *path)
+{
+    return NULL;
+}
+
+int disk_dir_close(struct disk *disk, void *dir)
+{
+    return 0;
+}
+
+int disk_dir_read(struct disk *disk, void *dir, void *entry)
+{
+    return 0;
+}
+
+int disk_fs_request(uint32_t disk_id, void *params, void *ret)
 {
     return 0;
 }

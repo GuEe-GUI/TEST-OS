@@ -78,10 +78,15 @@ finsh:
 
         if (i > 0)
         {
+            int cmd_start_idx;
             int idx = 0;
             int argc = 0;
             int mark = 0, space = 0;
             struct eval_void *node = (struct eval_void *)&eval_void_start;
+
+            for (; cmdline_buffer[idx] == ' '; ++idx) {}
+
+            cmd_start_idx = idx;
 
             for (; cmdline_buffer[idx] != '\0'; ++idx)
             {
@@ -142,7 +147,7 @@ finsh:
             }
 
             set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
-            printk("`%s' is not defined\n", cmdline_buffer);
+            printk("`%s' is not defined\n", &cmdline_buffer[cmd_start_idx]);
             set_color(CONSOLE_FILL, CONSOLE_CLEAR);
         }
     }
