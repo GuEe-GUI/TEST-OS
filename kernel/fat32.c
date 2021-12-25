@@ -150,22 +150,22 @@ static void *fat32_file_open(struct disk *disk, const char *path)
     return NULL;
 }
 
-static int fat32_file_close(struct disk *disk, void *file)
+static int fat32_file_close(struct disk *disk, struct file *file)
 {
     return 0;
 }
 
-static size_t fat32_file_read(struct disk *disk, void *file, void *buffer, off_t offset, size_t length)
+static size_t fat32_file_read(struct disk *disk, struct file *file, void *buffer, off_t offset, size_t length)
 {
     return 0;
 }
 
-static size_t fat32_file_write(struct disk *disk, void *file, const void *buffer, off_t offset, size_t length)
+static size_t fat32_file_write(struct disk *disk, struct file *file, const void *buffer, off_t offset, size_t length)
 {
     return 0;
 }
 
-static int fat32_file_seek(struct disk *disk, void *file, off_t offset, int whence)
+static int fat32_file_seek(struct disk *disk, struct file *file, off_t offset, int whence)
 {
     return 0;
 }
@@ -175,12 +175,12 @@ static void *fat32_dir_open(struct disk *disk, const char *path)
     return NULL;
 }
 
-static int fat32_dir_close(struct disk *disk, void *dir)
+static int fat32_dir_close(struct disk *disk, struct dir *dir)
 {
     return 0;
 }
 
-static int fat32_dir_read(struct disk *disk, void *dir, void *entry)
+static int fat32_dir_read(struct disk *disk, struct dir *dir, struct dir_entry *dir_entry)
 {
     return 0;
 }
@@ -244,7 +244,6 @@ int fat32_check(struct disk *disk)
     disk->fs_dir_close = &fat32_dir_close;
     disk->fs_dir_read = &fat32_dir_read;
     disk->fs_type = "fat32";
-    disk->fs_filesize = sizeof(struct fat32_file);
 
     entries_end = fs.bpb.extended.fat_sectors * fs.bpb.sector_size / fat_entry_size;
     sector_cur = fs.bpb.reserved_sectors * fs.bpb.sector_size / fs.bpb.sector_size;

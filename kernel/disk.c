@@ -69,7 +69,6 @@ struct disk *disk_register(char *name)
     new_disk->device = NULL;
     new_disk->fs = NULL;
     new_disk->fs_type = NULL;
-    new_disk->fs_filesize = 0;
     new_disk->next = disk_list;
 
     disk_list = new_disk;
@@ -146,47 +145,168 @@ void init_disk()
 
 void *disk_file_open(const char *path)
 {
+    if (path != NULL)
+    {
+        uint32_t disk_id = *(uint32_t *)path;
+
+        if (disk_id >= KERNEL_DISK_ID_START && disk_id <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(disk_id);
+
+            if (disk != NULL)
+            {
+                return disk->fs_file_open(disk, path);
+            }
+        }
+    }
+
     return NULL;
 }
 
 int disk_file_close(struct file *file)
 {
-    return 0;
+    if (file != NULL)
+    {
+        if (file->disk >= KERNEL_DISK_ID_START && file->disk <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(file->disk);
+
+            if (disk != NULL)
+            {
+                return disk->fs_file_close(disk, file);
+            }
+        }
+    }
+
+    return -1;
 }
 
 size_t disk_file_read(struct file *file, void *buffer, off_t offset, size_t length)
 {
+    if (file != NULL && buffer != NULL && length != 0)
+    {
+        if (file->disk >= KERNEL_DISK_ID_START && file->disk <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(file->disk);
+
+            if (disk != NULL)
+            {
+                return disk->fs_file_read(disk, file, buffer, offset, length);
+            }
+        }
+    }
+
     return 0;
 }
 
 size_t disk_file_write(struct file *file, const void *buffer, off_t offset, size_t length)
 {
+    if (file != NULL && buffer != NULL && length != 0)
+    {
+        if (file->disk >= KERNEL_DISK_ID_START && file->disk <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(file->disk);
+
+            if (disk != NULL)
+            {
+                return disk->fs_file_write(disk, file, buffer, offset, length);
+            }
+        }
+    }
+
     return 0;
 }
 
-int fs_file_seek(void *file, off_t offset, int whence)
+int fs_file_seek(struct file *file, off_t offset, int whence)
 {
-    return 0;
+    if (file != NULL && (whence >= FILE_SEEK_SET && whence <= FILE_SEEK_END))
+    {
+        if (file->disk >= KERNEL_DISK_ID_START && file->disk <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(file->disk);
+
+            if (disk != NULL)
+            {
+                return disk->fs_file_seek(disk, file, offset, whence);
+            }
+        }
+    }
+
+    return -1;
 }
 
-void *disk_dir_open(struct disk *disk, const char *path)
+void *disk_dir_open(const char *path)
 {
+    if (path != NULL)
+    {
+        uint32_t disk_id = *(uint32_t *)path;
+
+        if (disk_id >= KERNEL_DISK_ID_START && disk_id <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(disk_id);
+
+            if (disk != NULL)
+            {
+                return disk->fs_dir_open(disk, path);
+            }
+        }
+    }
+
     return NULL;
 }
 
-int disk_dir_close(struct disk *disk, void *dir)
+int disk_dir_close(struct dir *dir)
 {
-    return 0;
+    if (dir != NULL)
+    {
+        if (dir->disk >= KERNEL_DISK_ID_START && dir->disk <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(dir->disk);
+
+            if (disk != NULL)
+            {
+                return disk->fs_dir_close(disk, dir);
+            }
+        }
+    }
+
+    return -1;
 }
 
-int disk_dir_read(struct disk *disk, void *dir, void *entry)
+int disk_dir_read(struct dir *dir, struct dir_entry *dir_entry)
 {
-    return 0;
+    if (dir != NULL && dir_entry != NULL)
+    {
+        if (dir->disk >= KERNEL_DISK_ID_START && dir->disk <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(dir->disk);
+
+            if (disk != NULL)
+            {
+                return disk->fs_dir_read(disk, dir, dir_entry);
+            }
+        }
+    }
+
+    return -1;
 }
 
-int disk_fs_request(uint32_t disk_id, void *params, void *ret)
+int disk_fs_request(uint32_t disk_id, enum FS_REQUEST_TYPE type, void *params, void *ret)
 {
-    return 0;
+    if (type < FS_REQUEST_TYPE_SIZE)
+    {
+        if (disk_id >= KERNEL_DISK_ID_START && disk_id <= KERNEL_DISK_ID_END)
+        {
+            struct disk *disk = find_disk_by_id(disk_id);
+
+            if (disk != NULL)
+            {
+                return disk->fs_request(disk, type, params, ret);
+            }
+        }
+    }
+
+    return -1;
 }
 
 void print_disk(uint32_t disk_id)

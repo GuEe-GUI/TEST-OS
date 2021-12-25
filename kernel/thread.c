@@ -44,7 +44,10 @@ static void __attribute__((noreturn)) thread_died()
     sti();
 
     /* 等待被销毁 */
-    for (;;);
+    for (;;)
+    {
+        thread_yield();
+    }
 }
 
 void __attribute__((noreturn)) start_thread(void *thread_list)
@@ -345,7 +348,10 @@ void thread_wait(tid_t tid)
 
         sti();
 
-        while (node->status != THREAD_DIED) {}
+        while (node->status != THREAD_DIED)
+        {
+            thread_yield();
+        }
 
         --(node->ref);
     }

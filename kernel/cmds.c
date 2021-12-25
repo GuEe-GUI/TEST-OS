@@ -215,6 +215,11 @@ no_disk_name:
 
 EVAL_VOID(md, "Make a directory")(int argc, char**argv)
 {
+    if (argc < 2)
+    {
+        printk("no input directory name\n");
+        return;
+    }
 }
 
 EVAL_VOID(dir, "Display files in this directory")(int argc, char**argv)
