@@ -31,5 +31,7 @@ void handler
 #define EVAL_COLOR_ERROR    0xf44336ff
 
 void eval();
+char *get_eval_path();
+int set_eval_path(char *path);
 
 #endif /* _EVAl_H_ */

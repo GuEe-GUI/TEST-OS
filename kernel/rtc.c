@@ -20,7 +20,7 @@ void init_rtc()
 
     read_rtc();
 
-    LOG("rtc time = %d/%d/%d %d:%d:%d\n", time.year, time.month, time.day, time.hour, time.minute, time.second);
+    LOG("rtc time = %d/%d/%d %d:%d:%d", time.year, time.month, time.day, time.hour, time.minute, time.second);
 }
 
 int get_update_in_progress_flag()

@@ -1,5 +1,6 @@
 #include <console.h>
 #include <device.h>
+#include <disk.h>
 #include <eval.h>
 #include <kernel.h>
 #include <string.h>
@@ -11,6 +12,7 @@ extern void eval_void_start();
 
 static char cmdline_buffer[EVAL_CHAR_MAX];
 static char *cmdline_args[EVAL_ARGS_MAX];
+static char current_path[KERNEL_DISK_MAX_PATH];
 
 EVAL_VOID(help, "Display this information")(int argc, char**argv)
 {
@@ -30,11 +32,66 @@ EVAL_VOID(help, "Display this information")(int argc, char**argv)
     }
 }
 
+char *get_eval_path()
+{
+    static char current_path_cache[sizeof(current_path)];
+
+    strcpy(current_path_cache, current_path);
+
+    return &current_path_cache[0];
+}
+
+int set_eval_path(char *path)
+{
+    if (path != NULL)
+    {
+        struct dir dir;
+
+        if (!disk_dir_open(path, &dir))
+        {
+            size_t length = strlen(path);
+
+            strcpy(current_path, path);
+            disk_dir_close(&dir);
+
+            if (length > 0 && current_path[length - 1] != '/')
+            {
+                current_path[length++] = '/';
+                current_path[length] = '\0';
+            }
+
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 void eval()
 {
     const char back_force[] = {CONSOLE_BACK_FORCE, '\0'};
     uint8_t ch;
     int i;
+
+    memset(current_path, 0, sizeof(current_path));
+
+    for (i = KERNEL_DISK_ID_START; i < KERNEL_DISK_ID_END; ++i)
+    {
+        struct dir dir;
+        *((uint16_t *)&current_path[0]) = i;
+        current_path[sizeof(uint16_t)] = '/';
+
+        if (!disk_dir_open(current_path, &dir))
+        {
+            disk_dir_close(&dir);
+            break;
+        }
+    }
+
+    if (i >= KERNEL_DISK_ID_END)
+    {
+        strcpy(current_path, "(NULL)");
+    }
 
     printk("Welcome to eval v"OS_VERSION".\nType \"help\" for more information.\n\n");
 
@@ -44,7 +101,7 @@ finsh:
         i = 0;
 
         console_out(OS_ADMIN_NAME"@eval ", EVAL_COLOR_INFO, CONSOLE_CLEAR);
-        console_out("a:/", EVAL_COLOR_WARN, CONSOLE_CLEAR);
+        console_out(get_eval_path(), EVAL_COLOR_WARN, CONSOLE_CLEAR);
         console_out(">", EVAL_COLOR_WARN, CONSOLE_CLEAR);
         console_out(" ", CONSOLE_FILL, CONSOLE_CLEAR);
 

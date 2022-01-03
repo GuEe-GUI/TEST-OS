@@ -25,6 +25,7 @@ endif
 AS = nasm
 CC = $(CROSS_COMPILE)gcc
 LD = $(CROSS_COMPILE)ld
+OBJDUMP = $(CROSS_COMPILE)objdump
 
 BUILD_DIR = build
 
@@ -63,6 +64,7 @@ OBJS = \
 	eval.o\
 	cmds.o\
 	string.o\
+	ctype.o\
 	text.o
 
 OBJS := $(addprefix $(BUILD_DIR)/,${OBJS})
@@ -109,6 +111,10 @@ $(BUILD_DIR)/%.bin: boot/%.asm
 $(KERNEL_FILE): $(OBJS)
 	@echo [LD] $(KERNEL_LINKER_ADDR) $@
 	@$(LD) $(LD_FLAGS) -o $(KERNEL_FILE) $^
+
+objdump:
+	@echo [OBJDUMP] $(KERNEL_FILE)
+	@$(OBJDUMP) -d $(KERNEL_FILE) > $(patsubst %.elf,%.S,$(KERNEL_FILE))
 
 $(BUILD_DIR)/%.o: */%.asm
 	@echo [AS] $<

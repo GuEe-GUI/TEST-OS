@@ -85,5 +85,5 @@ void init_keyboard(void)
     interrupt_register(IRQ_1, keyboard_isr);
     interrupt_enable(IRQ_1);
 
-    LOG("ps2 keyboard hook input\n");
+    LOG("ps2 keyboard hook input");
 }

@@ -12,7 +12,7 @@
 do {                                        \
     set_color(0xffc107ff, CONSOLE_CLEAR);   \
     print_tick();                           \
-    printk(" " fmt, ##__VA_ARGS__);         \
+    printk(" " fmt "\n", ##__VA_ARGS__);    \
     set_color(CONSOLE_FILL, CONSOLE_CLEAR); \
 } while (0)
 

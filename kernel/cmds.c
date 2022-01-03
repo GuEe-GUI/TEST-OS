@@ -27,7 +27,7 @@ EVAL_VOID(powerdown, "Machine power down")(int argc, char**argv)
     /* QEMU (2.0)， bochs */
     __asm__ volatile ("outw %%ax, %%dx"::"d"(0xb004), "a"(0x2000));
 
-    PANIC("powerdown fail\n");
+    PANIC("powerdown fail");
 }
 
 EVAL_VOID(rtc, "Get rtc time")(int argc, char**argv)
@@ -215,56 +215,380 @@ no_disk_name:
 
 EVAL_VOID(md, "Make a directory")(int argc, char**argv)
 {
+    struct dir dir;
+
     if (argc < 2)
     {
         printk("no input directory name\n");
         return;
     }
+
+    if (disk_dir_open(get_eval_path(), &dir) < 0)
+    {
+        goto fail;
+    }
+
+    if (!disk_dir_create(&dir, argv[3], NULL))
+    {
+        goto success;
+    }
+
+fail:
+    printk("make `%s' directory fail\n", argv[1]);
+success:
+    disk_dir_close(&dir);
 }
 
-EVAL_VOID(dir, "Display files in this directory")(int argc, char**argv)
+EVAL_VOID(dir, "Display files and directories in this directory")(int argc, char**argv)
 {
+    uint32_t disk_id;
+    size_t len, size;
+    struct dir dir;
+    struct dir_entry dir_entry;
+
+    if (disk_dir_open(get_eval_path(), &dir))
+    {
+        return;
+    }
+
+    disk_id = *(uint32_t *)get_eval_path();
+
+    while (disk_dir_read(&dir, &dir_entry) >= 0)
+    {
+        len = printk("%s ", dir_entry.name);
+        while (len < 16)
+        {
+            printk(" ");
+            ++len;
+        }
+        if (dir_entry.attribute == DIR_ENTRY_DIR)
+        {
+            set_color_invert();
+            printk("(DIR)");
+            set_color_invert();
+            printk("\n");
+        }
+        else
+        {
+            size = 0;
+            disk_fs_request(disk_id, FS_DIR_ENTRY_SIZE, &dir_entry, &size);
+            printk("%d bytes\n", size);
+        }
+    }
+
+    disk_dir_close(&dir);
 }
 
 EVAL_VOID(rename, "Rename a file/directory")(int argc, char**argv)
 {
+    uint32_t disk_id;
+
+    if (argc < 3)
+    {
+        printk("Usage: rename [name1] [name2]\n");
+        return;
+    }
+
+    disk_id = *(uint32_t *)get_eval_path();
+
+    if (disk_fs_request(disk_id, FS_FILE_RENAME, PTR_LIST(argv[1], argv[2]), NULL) &&
+        disk_fs_request(disk_id, FS_DIR_RENAME, PTR_LIST(argv[1], argv[2]), NULL))
+    {
+        printk("rename `%s' to `%s' fail\n", argv[1], argv[2]);
+    }
 }
 
 EVAL_VOID(cd, "Change disk/directory")(int argc, char**argv)
 {
+    char path[KERNEL_DISK_MAX_PATH];
+
+    if (argc < 2)
+    {
+        printk("Usage: cd [path]\n");
+        return;
+    }
+
+    strcpy(path, get_eval_path());
+
+    if (!strcmp(argv[1], ".."))
+    {
+        int i = 0;
+
+        while (path[i] != '\0')
+        {
+            ++i;
+        }
+        while (i >= 0 && path[i] != '/')
+        {
+            --i;
+        }
+        --i;
+        while (i >= 0 && path[i] != '/')
+        {
+            --i;
+        }
+        path[i + 1] = '\0';
+    }
+    else
+    {
+        strcpy(&path[strlen(path)], argv[1]);
+    }
+
+    if (set_eval_path(path))
+    {
+        printk("entry %s fail\n", argv[1]);
+    }
 }
 
 EVAL_VOID(copy, "Copy a file/directory")(int argc, char**argv)
 {
+    uint32_t disk_id;
+    char *path;
+    size_t size, path_len;
+    struct file file1, file2;
+    struct dir dir;
+    int flag = 0;
+
+    if (argc < 3)
+    {
+        printk("Usage: copy [name1] [name2]\n");
+        return;
+    }
+
+    if (!strcmp(argv[1], argv[2]))
+    {
+        printk("must be a different name");
+        return;
+    }
+
+    path = get_eval_path();
+    disk_id = *(uint32_t *)path;
+    path_len = strlen(path);
+
+    strcpy(&file1.path[path_len], argv[1]);
+    strcpy(&file2.path[path_len], argv[2]);
+
+    if (disk_file_open(file1.path, &file1))
+    {
+        printk("open file `%s'");
+    }
+
+    if (disk_dir_open(path, &dir) < 0)
+    {
+        goto fail;
+    }
+
+    if (!disk_dir_create_entry(&dir, argv[2], 0, NULL))
+    {
+        goto success;
+    }
+
+fail:
+    flag = printk("create file `%s' fail\n", argv[2]);
+success:
+    disk_dir_close(&dir);
+
+    if (flag)
+    {
+        return;
+    }
+
+    disk_fs_request(disk_id, FS_FILE_SIZE, &file1, &size);
+
+    if (size > 0)
+    {
+        char *buffer;
+
+        buffer = (char *)malloc(size);
+        ASSERT(!disk_file_open(file2.path, &file2));
+
+        disk_file_read(&file1, buffer, 0, size);
+        disk_file_write(&file2, buffer, 0, size);
+
+        disk_file_close(&file2);
+        free(buffer);
+    }
+
+    disk_file_close(&file1);
 }
 
 EVAL_VOID(del, "Delete a file/directory")(int argc, char**argv)
 {
+    uint32_t disk_id;
+
     if (argc < 2)
     {
         printk("no input file\n");
         return;
     }
+
+    disk_id = *(uint32_t *)get_eval_path();
+
+    if (disk_fs_request(disk_id, FS_FILE_DELETE, argv[1], NULL) &&
+        disk_fs_request(disk_id, FS_DIR_DELETE, argv[1], NULL))
+    {
+        printk("delete `%s' fail\n", argv[1]);
+    }
 }
 
 EVAL_VOID(pushf, "Push data to file")(int argc, char**argv)
 {
-    if (argc < 2 || argv[1][0] != '>' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
+    char path[KERNEL_DISK_MAX_PATH];
+    int length;
+    off_t offset;
+    struct file file;
+
+    if (argc < 4 || argv[2][0] != '>' || strlen(argv[2]) > 2)
     {
         printk("Usage: pushf [data] [options] [file]\nOptions:\n");
         printk("  > \tOverlay data to file\n");
         printk("  >>\tAppend data to file\n");
         return;
     }
+
+    if (&argv[2][2] != NULL)
+    {
+        offset = 0;
+    }
+    else if (argv[2][2] == '>')
+    {
+        offset = !0;
+    }
+    else
+    {
+        printk("unrecognized option `%s'\n", &argv[2][2]);
+        return;
+    }
+
+    strcpy(path, get_eval_path());
+    length = strlen(path);
+    strncpy(&path[length], argv[3], KERNEL_DISK_MAX_PATH);
+
+    if (disk_file_open(path, &file) < 0)
+    {
+        struct dir dir;
+        int flag = 0;
+
+        if (disk_dir_open(get_eval_path(), &dir) < 0)
+        {
+            goto fail;
+        }
+
+        if (!disk_dir_create_entry(&dir, argv[3], 0, NULL))
+        {
+            goto success;
+        }
+
+    fail:
+        flag = printk("create file `%s' fail\n", argv[3]);
+    success:
+        disk_dir_close(&dir);
+
+        if (flag)
+        {
+            return;
+        }
+    }
+
+    if (offset)
+    {
+        if (disk_fs_request(*(uint32_t *)get_eval_path(), FS_FILE_SIZE, &file, &offset))
+        {
+            offset = 0;
+        }
+    }
+
+    disk_file_write(&file, argv[1], offset, strlen(argv[1]));
+    disk_file_close(&file);
 }
 
 EVAL_VOID(popf, "Pop data from file")(int argc, char**argv)
 {
-    if (argc < 2 || argv[1][0] != '-' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
+    int i;
+    int length;
+    int cols = get_console_cols() / 3 - 1,  col = 0;
+    off_t offset;
+    size_t out_size, in_size;
+    struct file file;
+    char *path = get_eval_path();
+    char buffer[512];
+
+    if (argc < 3 || argv[1][0] != '-' || argv[1][1] == '\0' || strlen(argv[1]) > 2)
     {
         printk("Usage: popf [options] [file]\nOptions:\n");
         printk("  -a\tPrint with ascii\n");
         printk("  -h\tPrint with hex\n");
         return;
     }
+
+    length = strlen(path);
+    strcpy(buffer, path);
+    strcpy(&buffer[length], argv[2]);
+
+    if (disk_file_open(buffer, &file) < 0)
+    {
+        printk("open file `%s' fail\n", argv[2]);
+        return;
+    }
+
+    for (offset = 0, in_size = sizeof(buffer);;)
+    {
+        out_size = disk_file_read(&file, buffer, offset, in_size);
+
+        if (out_size == 0)
+        {
+            if (in_size != sizeof(buffer))
+            {
+                break;
+            }
+            in_size = 1;
+            if (offset != 0)
+            {
+                offset -= sizeof(buffer);
+                memset(buffer, 0, sizeof(buffer));
+            }
+            continue;
+        }
+        else
+        {
+            if (argv[1][1] == 'a')
+            {
+                for (i = 0; i < out_size; ++i)
+                {
+                    printk("%c", buffer[i]);
+                }
+            }
+            else if (argv[1][1] == 'h')
+            {
+                for (i = 0; i < out_size; ++i, ++col)
+                {
+                    if (buffer[i] < 0x10)
+                    {
+                        printk("0");
+                    }
+                    printk("%x ", buffer[i]);
+
+                    if (col >= cols)
+                    {
+                        printk("\n");
+                        col = 0;
+                    }
+                }
+            }
+            else
+            {
+                printk("unrecognized option `%s'\n", &argv[1][1]);
+                break;
+            }
+        }
+
+        offset += in_size;
+    }
+
+    if (col)
+    {
+        printk("\n");
+    }
+
+    disk_file_close(&file);
 }

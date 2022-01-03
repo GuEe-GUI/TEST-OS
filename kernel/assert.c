@@ -20,6 +20,7 @@ void __attribute__((noreturn)) assert(const char *file, uint32_t line, const cha
     cli();
 
     set_color(0xef2929ff, CONSOLE_CLEAR);
+    printk("\n");
     print_hr(assert_hr_len);
     printk(assert_title);
     print_hr(assert_hr_len);

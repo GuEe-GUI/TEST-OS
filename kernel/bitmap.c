@@ -4,6 +4,9 @@
 #include <memory.h>
 #include <string.h>
 
+#define BITMAP_HEAP_MALLOC_MAGIC    0x50414548  /* "HEAP" */
+#define BITMAP_HEAP_FREE_MAGIC      0x70616568  /* "heap" */
+
 static struct bitmap bitmap;
 
 void init_bitmap(uint32_t bytes_len)
@@ -28,7 +31,7 @@ void init_bitmap(uint32_t bytes_len)
 
     memset(bitmap.map, 0, bitmap.map_size);
 
-    LOG("bitmap range = <0x%p 0x%p>, size = %dMB\n", bitmap.bits_start, bitmap.bits_end, bytes_len / (1 * MB));
+    LOG("bitmap range = <0x%p 0x%p>, size = %dMB", bitmap.bits_start, bitmap.bits_end, bytes_len / (1 * MB));
 }
 
 void *bitmap_malloc(size_t size)
@@ -46,6 +49,10 @@ void *bitmap_malloc(size_t size)
         size = 1;
     }
 
+    /* 我们需要8字节分别标记堆标识和堆大小 */
+    size += 8;
+
+    /* 计算需要4K的数量 */
     i = size;
     size /= (4 * KB);
     if (i % (4 * KB) != 0)
@@ -56,8 +63,9 @@ void *bitmap_malloc(size_t size)
     /* 记录找到的4KB的个数 */
     found = 0;
     ret = NULL;
-    /* 获取当前bitmap内存指针 */
+    /* 获取当前bitmap内存指针来计算i和j，i为map的索引，j为byte中的bit索引 */
     i = (bitmap.bits_ptr - bitmap.bits_start) / (8 * 4 * KB);
+    j = (bitmap.bits_ptr - bitmap.bits_start) / (4 * KB) - (i * 8);
     /* 作为i的限制 */
     len = bitmap.map_size;
 
@@ -65,7 +73,7 @@ found_prev:
     for (; i < len; ++i)
     {
         /* 查找每个byte中的位 */
-        for (j = 0; j < 8; ++j)
+        for (; j < 8; ++j)
         {
             if (((bitmap.map[i] >> j) & 1) == 0)
             {
@@ -81,10 +89,15 @@ found_prev:
             {
                 size_t alloc_size = size * (4 * KB);
                 ret = (void *)(bitmap.bits_start + (i * 8 + j + 1) * (4 * KB) - alloc_size);
-                /* 标记内存大小（内存至少分配4KB，用1byte记录内存大小影响不大） */
-                *ret++ = (uint8_t)size;
-                /* 地址+1返回 */
-                bitmap.bits_ptr = (uint32_t)ret + alloc_size;
+                /* 标记内存为堆 */
+                *(uint32_t *)ret = BITMAP_HEAP_MALLOC_MAGIC;
+                ret += 4;
+                /* 标记内存大小 */
+                *(uint32_t *)ret = size;
+                /* 此时返回实际堆地址 */
+                ret += 4;
+                /* 记录下一次可能分配的地址 */
+                bitmap.bits_ptr = (uint32_t)ret - 8 + alloc_size;
                 /* 标记位图被占用 */
                 while (size > 0)
                 {
@@ -100,6 +113,7 @@ found_prev:
                 goto end;
             }
         }
+        j = 0;
     }
 
 end:
@@ -119,6 +133,27 @@ end:
     return ret;
 }
 
+void *bitmap_realloc(void *addr, size_t size)
+{
+    /* 这里不再基于bitmap处理，而是直接用新内存（size存放在addr - 4字节） */
+    size_t old_size = *(((uint8_t *)addr) - 4) * 4 * KB;
+
+    if (old_size < size)
+    {
+        void *new_ptr = bitmap_malloc(size);
+
+        if (new_ptr != NULL)
+        {
+            memcpy(new_ptr, addr, old_size);
+            bitmap_free(addr);
+        }
+
+        return new_ptr;
+    }
+
+    return addr;
+}
+
 void bitmap_free(void *addr)
 {
     size_t size;
@@ -126,9 +161,12 @@ void bitmap_free(void *addr)
 
     cli();
 
-    /* size存放在前一个字节，前一个字节开始为申请内存地址的起点 */
-    addr = ((uint8_t *)addr) - 1;
-    size = *((uint8_t *)addr);
+    /* size存放在addr - 4字节，堆标记在addr - 8字节 */
+    addr = ((uint8_t *)addr) - 8;
+    ASSERT(*(uint32_t *)addr == BITMAP_HEAP_MALLOC_MAGIC);
+    *(uint32_t *)addr = BITMAP_HEAP_FREE_MAGIC;
+    size = *((uint32_t *)(((uint8_t *)addr) + 4));
+
     /* 在bitmap哪个地址 */
     i = ((uint32_t)addr - bitmap.bits_start) / (8 * 4 * KB);
     /* 在该地址哪个bit */

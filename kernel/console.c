@@ -65,7 +65,7 @@ void init_console(uint32_t width, uint32_t height)
 
     printk("\nTEST OS [Version %s]\n(C) %s %s. %s License.\n\n", OS_VERSION, OS_OWNER_YEAR, OS_OWNER_NAME, OS_LICENSE);
 
-    LOG("console width = %dPX, height = %dPX\n", console.width, console.height);
+    LOG("console width = %dPX, height = %dPX", console.width, console.height);
 }
 
 uint32_t get_console_cols()

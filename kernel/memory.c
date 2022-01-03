@@ -30,8 +30,8 @@ static inline void init_ards()
 
     total_memory_bytes += 1 * MB;
 
-    LOG("ards number = %d\n", ards_number);
-    LOG("device total memory = %dMB\n", total_memory_bytes / (1 * MB));
+    LOG("ards number = %d", ards_number);
+    LOG("device total memory = %dMB", total_memory_bytes / (1 * MB));
 }
 
 static inline void memory_remap()
@@ -45,7 +45,7 @@ static inline void memory_remap()
     uint32_t *dir_paddr = (void *)KERNEL_PAGE_DIR_PADDR;
     uint32_t *tbl_paddr = (void *)KERNEL_VA_PAGE_PADDR;
 
-    /* 从内核只需要最多大约1G内存空间，映射的内存区域[0 ~ KERNEL_PAGE_MAP_MAX] */
+    /* 内核只需要最多大约1G内存空间，映射的内存区域[0 ~ KERNEL_PAGE_MAP_MAX] */
     if (total_memory_bytes > KERNEL_PAGE_MAP_MAX)
     {
         total_memory_bytes = KERNEL_PAGE_MAP_MAX;
@@ -75,14 +75,18 @@ static inline void memory_remap()
         map_vaddr += 4 * MB;
     }
 
+    /* 前4K给空指针NULL预留，设置属性为无效内存 */
+    ((uint32_t *)KERNEL_PA_PAGE_PADDR)[0] = 0 | PAGE_ATTR_NOT_PRESENT;
+    ((uint32_t *)KERNEL_VA_PAGE_PADDR)[0] = 0 | PAGE_ATTR_NOT_PRESENT;
+
     /* 内核在加载前就已经映射4M */
-    LOG("new map physical memory range = <4MB %dMB>\n", total_memory_bytes / (1 * MB));
-    LOG("new map virtual memory range = <0x%p 0x%p>\n", KERNEL_MAP_BASE_VADDR + 4 * MB, KERNEL_MAP_BASE_VADDR + total_memory_bytes);
+    LOG("new map physical memory range = <4MB %dMB>", total_memory_bytes / (1 * MB));
+    LOG("new map virtual memory range = <0x%p 0x%p>", KERNEL_MAP_BASE_VADDR + 4 * MB, KERNEL_MAP_BASE_VADDR + total_memory_bytes);
 }
 
 void __attribute__((noreturn)) page_failure_isr(struct registers *reg)
 {
-    PANIC("page failure error in eip = 0x%p, esp = 0x%p\n", reg->eip, reg->esp);
+    PANIC("page failure error in eip = 0x%p, esp = 0x%p", reg->eip, reg->esp);
 }
 
 void init_memory()
@@ -92,8 +96,8 @@ void init_memory()
 
     interrupt_register(14, page_failure_isr);
 
-    LOG("kernel stack top addr = 0x%p\n", KERNEL_STACK_TOP);
-    LOG("memory hook page failure\n");
+    LOG("kernel stack top addr = 0x%p", KERNEL_STACK_TOP);
+    LOG("memory hook page failure");
 }
 
 uint32_t get_total_memory_bytes()

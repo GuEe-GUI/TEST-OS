@@ -52,8 +52,8 @@ static void __attribute__((noreturn)) thread_died()
 
 void __attribute__((noreturn)) start_thread(void *thread_list)
 {
-    tid_t tid;
-    struct thread *thread_cleaner = (struct thread *)malloc(KERNEL_THREAD_STACK_SIZE);
+    /* thread_cleaner 使用原来内核的栈顶 */
+    struct thread *thread_cleaner = (struct thread *)(KERNEL_STACK_TOP - KERNEL_THREAD_STACK_SIZE);
 
     if (ARRAY_SIZE(tid_bitmap) > 1)
     {
@@ -62,20 +62,24 @@ void __attribute__((noreturn)) start_thread(void *thread_list)
 
     if ((thread_head[THREAD_READY] = thread_cleaner) == NULL)
     {
-        PANIC("init thread cleaner fail\n");
+        PANIC("init thread cleaner fail");
     }
 
     thread_cleaner->tid = 0;
+    thread_cleaner->status = THREAD_READY;
     thread_cleaner->wake_millisecond = 0;
+    thread_cleaner->ref = 0;
+    strcpy(thread_cleaner->name, "thread cleaner");
     thread_cleaner->handler = &&thread_cleaner_entry;
     thread_cleaner->params = NULL;
-    memcpy(thread_cleaner->name, "thread cleaner", sizeof("thread cleaner"));
+    thread_cleaner->context.esp = KERNEL_STACK_TOP - sizeof(uint32_t) * 3;
 
     thread_wake(thread_cleaner->tid);
-    LOG("%s handler = 0x%p, tid = %d\n", thread_cleaner->name, thread_cleaner->handler, thread_cleaner->tid);
+    LOG("%s handler = 0x%p, tid = %d", thread_cleaner->name, thread_cleaner->handler, thread_cleaner->tid);
 
     if (thread_list != NULL)
     {
+        tid_t tid;
         int i = 0;
         while (PTR_LIST_ITEM(thread_list, i) != NULL)
         {
@@ -87,11 +91,11 @@ void __attribute__((noreturn)) start_thread(void *thread_list)
 
             if (thread_create(&tid, name, handler, params))
             {
-                PANIC("create %s thread fail\n", name);
+                PANIC("create %s thread fail", name);
             }
 
             thread_wake(tid);
-            LOG("%s thread handler = 0x%p, tid = %d\n", name, handler, tid);
+            LOG("%s thread handler = 0x%p, tid = %d", name, handler, tid);
         }
     }
 
@@ -185,6 +189,8 @@ int thread_create(tid_t *tid, char *name, void *handler, void *params)
             {
                 if (((tid_bitmap[map_idx] >> bit_idx) & 1) == 0)
                 {
+                    uint32_t *stack_top;
+
                     tid_bitmap[map_idx] |= 1 << bit_idx;
 
                     *tid = map_idx * (sizeof(tid_t) * 8) + bit_idx;
@@ -194,14 +200,21 @@ int thread_create(tid_t *tid, char *name, void *handler, void *params)
                     new_thread->ref = 0;
                     new_thread->handler = handler;
                     new_thread->params = params;
-                    new_thread->context.esp = 0;
+
+                    /* 根据栈结构填充对应数据 */
+                    stack_top = (uint32_t *)((uint32_t)new_thread + KERNEL_THREAD_STACK_SIZE - sizeof(uint32_t) * 3);
+                    stack_top[0] = (uint32_t)new_thread->handler;   /* 函数入口地址 */
+                    stack_top[1] = (uint32_t)thread_died;           /* 函数返回地址 */
+                    stack_top[2] = (uint32_t)new_thread->params;    /* 函数参数值 */
+
+                    new_thread->context.esp = (uint32_t)stack_top;
 
                     if (name == NULL)
                     {
                         name = "unnamed";
                     }
                     memset(new_thread->name, 0, KERNEL_THREAD_NAME_LEN);
-                    memcpy(new_thread->name, name, strlen(name));
+                    strncpy(new_thread->name, name, KERNEL_THREAD_NAME_LEN);
                     new_thread->name[KERNEL_THREAD_NAME_LEN - 1] = '\0';
 
                     if (thread_head[THREAD_READY] != NULL)
@@ -264,17 +277,6 @@ void thread_wake(tid_t tid)
         node->status = THREAD_RUNNING;
         node->next = thread_head[THREAD_RUNNING];
         thread_head[THREAD_RUNNING] = node;
-
-        if (node->context.esp == 0)
-        {
-            uint32_t *stack_top;
-            stack_top = (uint32_t *)((uint32_t)node + KERNEL_THREAD_STACK_SIZE - sizeof(uint32_t) * 3);
-            stack_top[0] = (uint32_t)node->handler;
-            stack_top[1] = (uint32_t)thread_died;
-            stack_top[2] = (uint32_t)node->params;
-
-            node->context.esp = (uint32_t)stack_top;
-        }
     }
 
     sti();

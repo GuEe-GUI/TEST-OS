@@ -63,7 +63,7 @@ void isr_handler(struct registers *registers)
     }
     else
     {
-        PANIC("unhook interrupt vector: %d\n", registers->interrupt_vector);
+        PANIC("unhook interrupt vector: %d", registers->interrupt_vector);
     }
 }
 
@@ -146,7 +146,7 @@ void init_idt(void)
     /* 加载IDTR */
     __asm__ volatile ("lidtl (idtr)");
 
-    LOG("load idtr limite = %d, base = 0x%p\n", idtr.limite, idtr.base);
+    LOG("load idtr limite = %d, base = 0x%p", idtr.limite, idtr.base);
 }
 
 void init_8259a(void)
@@ -167,7 +167,7 @@ void init_8259a(void)
     io_out8(PIC0_IMR, 0xff);
     io_out8(PIC1_IMR, 0xff);
 
-    LOG("interrupt control is 8259a\n");
+    LOG("interrupt control is 8259a");
 }
 
 void print_interrupt()

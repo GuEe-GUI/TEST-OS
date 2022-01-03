@@ -41,17 +41,15 @@ typedef unsigned long       off_t;
 #define PTR_LIST(ptr, ...) (void *[]){ptr, ##__VA_ARGS__}
 #define PTR_LIST_ITEM(list, n) ((void **)list)[n]
 
-#define IS_POWER_OF_2(val) (val > 0 && (val & (val - 1)) == 0)
+#define IS_POWER_OF_2(val) ((val) > 0 && ((val) & ((val) - 1)) == 0)
 
-#define INTEGER_SWAP(a, b) \
-{ \
-    a ^= b; \
-    b ^= a; \
-    a ^= b; \
+#define INTEGER_SWAP(a, b)  \
+{                           \
+    a ^= b; b ^= a; a ^= b; \
 }
 
-#define TO_LOWER(ch) (ch | ' ')
-#define TO_UPPER(ch) (ch & '_')
-#define TO_CAPS(ch)  (ch ^ ' ')
+#define TO_LOWER(ch) ((ch) | ' ')
+#define TO_UPPER(ch) ((ch) & '_')
+#define TO_CAPS(ch)  ((ch) ^ ' ')
 
 #endif /* _TYPES_H_ */

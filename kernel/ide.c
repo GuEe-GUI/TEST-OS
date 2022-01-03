@@ -96,11 +96,11 @@ static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, in
     uint16_t bus = ide_ata_device->bus;
     uint16_t ctrl = ide_ata_device->ctrl;
 
-    if (sector_count > 256)
+    if (sector_count > IDE_INFO_BLOCK_SIZE / 2)
     {
         return;
     }
-    else if (sector_count == 256)
+    else if (sector_count == IDE_INFO_BLOCK_SIZE / 2)
     {
         sector_count = 0;
     }
@@ -122,7 +122,7 @@ static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, in
 
     if (sector_count == 0)
     {
-        sector_count = 256;
+        sector_count = IDE_INFO_BLOCK_SIZE / 2;
     }
 
     for (j = 0; j < sector_count; j++)
@@ -140,7 +140,7 @@ static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, in
             return;
         }
 
-        for (i = 0; i < 256; ++i, ++buffer)
+        for (i = 0; i < IDE_INFO_BLOCK_SIZE / 2; ++i, ++buffer)
         {
             if (pio_flag == ATA_PIO_FLAG_WRITE)
             {
@@ -177,7 +177,7 @@ int ide_identify(struct ide *ide_device)
     int status, i;
     uint8_t type = ide_device->type;
     uint16_t bus = ide_device->bus;
-    uint16_t identify_data[256] __attribute__((unused));
+    uint16_t identify_data[IDE_INFO_BLOCK_SIZE / 2] __attribute__((unused));
     struct disk *disk;
 
     status = io_in8(bus + ATA_REG_STATUS);
@@ -191,7 +191,7 @@ int ide_identify(struct ide *ide_device)
 
     if ((status = io_in8(bus + ATA_REG_STATUS)) == 0)
     {
-        LOG("ide(%s:%s) does not exist\n", IDE_NAME(type, bus));
+        LOG("ide(%s:%s) does not exist", IDE_NAME(type, bus));
 
         return -1;
     }
@@ -204,12 +204,12 @@ int ide_identify(struct ide *ide_device)
 
         if (status & ATA_SR_ERR)
         {
-            LOG("ide(%s:%s) using ata init fail\n", IDE_NAME(type, bus));
+            LOG("ide(%s:%s) using ata init fail", IDE_NAME(type, bus));
 
             return -1;
         }
 
-        for (i = 0; i < 256; i++)
+        for (i = 0; i < IDE_INFO_BLOCK_SIZE / 2; i++)
         {
             identify_data[i] = io_in16(bus + ATA_REG_DATA);
         }
@@ -227,7 +227,7 @@ int ide_identify(struct ide *ide_device)
 
             disk->total = (cylinders * heads * sector_count / 2048 + 1) * MB;
 
-            LOG("ide(%s:%s) using ata is ready\n", IDE_NAME(type, bus));
+            LOG("ide(%s:%s) using ata is ready", IDE_NAME(type, bus));
 
             return 0;
         }
@@ -236,13 +236,13 @@ int ide_identify(struct ide *ide_device)
     }
     else if (io_in8(SATA_LBAMID_PRI) == SATA_INT_GET_RET || io_in8(SATA_LBAHI_PRI) == SATA_INT_GET_RET)
     {
-        LOG("ide(%s:%s) using %s is not supported yet\n", IDE_NAME(type, bus), "sata");
+        LOG("ide(%s:%s) using %s is not supported yet", IDE_NAME(type, bus), "sata");
 
         return -1;
     }
     else
     {
-        LOG("ide(%s:%s) using %s is not supported yet\n", IDE_NAME(type, bus), "atapi");
+        LOG("ide(%s:%s) using %s is not supported yet", IDE_NAME(type, bus), "atapi");
 
         return -1;
     }
