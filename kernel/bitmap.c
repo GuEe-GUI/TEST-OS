@@ -8,6 +8,7 @@
 #define BITMAP_HEAP_FREE_MAGIC      0x70616568  /* "heap" */
 
 static struct bitmap bitmap;
+static pe_lock_t bitmap_lock = 0;
 
 void init_bitmap(uint32_t bytes_len)
 {
@@ -41,7 +42,7 @@ void *bitmap_malloc(size_t size)
     uint32_t len;
     uint8_t *ret;
 
-    cli();
+    pe_lock(&bitmap_lock);
 
     /* 原则上参数为0默认申请一个字节 */
     if (size == 0)
@@ -128,7 +129,7 @@ end:
     }
     /* 如果重头查找也失败就直接返回 */
 
-    sti();
+    pe_unlock(&bitmap_lock);
 
     return ret;
 }
@@ -159,7 +160,7 @@ void bitmap_free(void *addr)
     size_t size;
     int i, j;
 
-    cli();
+    pe_lock(&bitmap_lock);
 
     /* size存放在addr - 4字节，堆标记在addr - 8字节 */
     addr = ((uint8_t *)addr) - 8;
@@ -188,17 +189,17 @@ void bitmap_free(void *addr)
     }
 
 end:
-    sti();
+    pe_unlock(&bitmap_lock);
 }
 
-void print_mem()
+void print_mem(void)
 {
     size_t total = bitmap.map_size;
     size_t free = 0;
     size_t used = 0;
     int i, j;
 
-    cli();
+    pe_lock(&bitmap_lock);
 
     for (i = total - 1; i >= 0; --i)
     {
@@ -215,7 +216,7 @@ void print_mem()
         }
     }
 
-    sti();
+    pe_unlock(&bitmap_lock);
 
     total = total * (4 * KB * 8) / KB;
     used  = used  * (4 * KB) / KB;

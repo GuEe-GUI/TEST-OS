@@ -48,7 +48,7 @@ READ_FLOPPY:
     mov al,READ_SECTOR
     int 0x13
 
-    jnc ENTER_LOADER        ; Cf标志, 0 为成功, 1 为失败
+    jnc ENTER_LOADER        ; Cf标志, 0为成功, 1为失败
     jmp READ_FLOPPY
 
 ; 跳转到Loader程序

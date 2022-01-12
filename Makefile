@@ -49,6 +49,7 @@ OBJS = \
 	start.o\
 	vbe.o\
 	interrupt.o\
+	io.o\
 	timer.o\
 	rtc.o\
 	console.o\

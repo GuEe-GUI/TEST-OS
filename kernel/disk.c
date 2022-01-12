@@ -8,10 +8,15 @@
 #include "fs.h"
 
 static struct disk *disk_list = NULL;
+static pe_lock_t disk_lock = 0;
 
 static struct disk *find_disk_by_id(uint32_t id)
 {
-    struct disk *node = disk_list;
+    struct disk *node, *ret = NULL;
+
+    pe_lock(&disk_lock);
+
+    node = disk_list;
     /* 传入的id可能高16位不是0，要手动清理 */
     id = (uint16_t)id;
 
@@ -19,12 +24,15 @@ static struct disk *find_disk_by_id(uint32_t id)
     {
         if (node->id == id)
         {
-            return node;
+            ret = node;
+            break;
         }
         node = node->next;
     }
 
-    return NULL;
+    pe_unlock(&disk_lock);
+
+    return ret;
 }
 
 struct disk *disk_register(char *name)
@@ -48,6 +56,8 @@ struct disk *disk_register(char *name)
     }
 
     new_disk = (struct disk *)malloc(sizeof(struct disk));
+
+    ASSERT(new_disk != NULL);
 
     new_disk->id = disk_id.all;
     new_disk->name = name;
@@ -84,11 +94,7 @@ void disk_format(uint32_t id, char *fs_type)
     int i;
     struct disk *disk;
 
-    cli();
-
     disk = find_disk_by_id(*(unsigned int *)id);
-
-    sti();
 
     if (disk == NULL)
     {
@@ -105,7 +111,17 @@ void disk_format(uint32_t id, char *fs_type)
     {
         if (!strcmp(fs_type, fs_opts[i].type))
         {
-            printk("disk `%s' format to `%s' %s\n", (char *)id, fs_type, fs_opts[i].format(disk) ? "fail" : "ok");
+            int fs_ret = fs_opts[i].format(disk);
+
+            printk("disk `%s' format to `%s' %s\n", (char *)id, fs_type, fs_ret ? "fail" : "ok");
+
+            if (!fs_ret)
+            {
+                fs_ret = fs_opts[i].check(disk);
+
+                printk("disk `%s' check %s\n", (char *)id, fs_ret ? "fail" : "ok");
+            }
+
             return;
         }
     }
@@ -157,6 +173,8 @@ int disk_file_open(const char *path, struct file *file)
 
             if (disk != NULL && disk->fs_file_open != NULL)
             {
+                int fs_ret;
+
                 file->disk = disk_id;
 
                 while (*path && *path != '/')
@@ -164,7 +182,11 @@ int disk_file_open(const char *path, struct file *file)
                     ++path;
                 }
 
-                return disk->fs_file_open(disk, path, file);
+                ++(disk->ref);
+                fs_ret = disk->fs_file_open(disk, path, file);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -182,14 +204,18 @@ int disk_file_close(struct file* file)
 
             if (disk != NULL && disk->fs_file_close != NULL)
             {
-                int ret = disk->fs_file_close(disk, file);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_file_close(disk, file);
+                --(disk->ref);
 
                 if (file->fs_file != NULL)
                 {
                     free(file->fs_file);
                 }
 
-                return ret;
+                return fs_ret;
             }
         }
     }
@@ -207,7 +233,13 @@ size_t disk_file_read(struct file *file, void *buffer, off_t offset, size_t leng
 
             if (disk != NULL && disk->fs_file_read != NULL)
             {
-                return disk->fs_file_read(disk, file, buffer, offset, length);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_file_read(disk, file, buffer, offset, length);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -225,7 +257,13 @@ size_t disk_file_write(struct file *file, const void *buffer, off_t offset, size
 
             if (disk != NULL && disk->fs_file_write != NULL)
             {
-                return disk->fs_file_write(disk, file, buffer, offset, length);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_file_write(disk, file, buffer, offset, length);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -243,7 +281,13 @@ int disk_file_seek(struct file *file, off_t offset, int whence)
 
             if (disk != NULL && disk->fs_file_seek != NULL)
             {
-                return disk->fs_file_seek(disk, file, offset, whence);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_file_seek(disk, file, offset, whence);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -263,6 +307,8 @@ int disk_dir_open(const char *path, struct dir *dir)
 
             if (disk != NULL && disk->fs_dir_open != NULL)
             {
+                int fs_ret;
+
                 dir->disk = disk_id;
 
                 while (*path && *path != '/')
@@ -270,7 +316,11 @@ int disk_dir_open(const char *path, struct dir *dir)
                     ++path;
                 }
 
-                return disk->fs_dir_open(disk, path, dir);
+                ++(disk->ref);
+                fs_ret = disk->fs_dir_open(disk, path, dir);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -288,14 +338,18 @@ int disk_dir_close(struct dir *dir)
 
             if (disk != NULL && disk->fs_dir_close != NULL)
             {
-                int ret = disk->fs_dir_close(disk, dir);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_dir_close(disk, dir);
+                --(disk->ref);
 
                 if (dir->fs_dir != NULL)
                 {
                     free(dir->fs_dir);
                 }
 
-                return ret;
+                return fs_ret;
             }
         }
     }
@@ -313,7 +367,13 @@ int disk_dir_read(struct dir *dir, struct dir_entry *entry)
 
             if (disk != NULL && disk->fs_dir_read != NULL)
             {
-                return disk->fs_dir_read(disk, dir, entry);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_dir_read(disk, dir, entry);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -331,7 +391,13 @@ int disk_dir_create_entry(struct dir *dir, const char *name, enum DIR_ENTRY_ATTR
 
             if (disk != NULL && disk->fs_dir_create_entry != NULL)
             {
-                return disk->fs_dir_create_entry(disk, dir, name, attribute, dir_entry);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_dir_create_entry(disk, dir, name, attribute, dir_entry);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -349,7 +415,13 @@ int disk_dir_create(struct dir *dir, const char *name, struct dir_entry *dir_ent
 
             if (disk != NULL && disk->fs_dir_create != NULL)
             {
-                return disk->fs_dir_create(disk, dir, name, dir_entry);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_dir_create(disk, dir, name, dir_entry);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -369,7 +441,13 @@ int disk_fs_request(uint32_t disk_id, enum FS_REQUEST_TYPE type, void *params, v
 
             if (disk != NULL && disk->fs_request != NULL)
             {
-                return disk->fs_request(disk, type, params, ret);
+                int fs_ret;
+
+                ++(disk->ref);
+                fs_ret = disk->fs_request(disk, type, params, ret);
+                --(disk->ref);
+
+                return fs_ret;
             }
         }
     }
@@ -425,11 +503,7 @@ void print_disk(uint32_t disk_id)
             {
                 len = printk("| 1 <=");
             }
-            while (len < 11)
-            {
-                printk(" ");
-                ++len;
-            }
+            put_space(len, 11);
             if (node->free > (1 * MB))
             {
                 len = printk("| %d", node->free / MB);
@@ -438,11 +512,7 @@ void print_disk(uint32_t disk_id)
             {
                 len = printk("| 1 <=");
             }
-            while (len < 11)
-            {
-                printk(" ");
-                ++len;
-            }
+            put_space(len, 11);
             if (node->used > (1 * MB))
             {
                 len = printk("| %d", node->used / MB);
@@ -451,11 +521,7 @@ void print_disk(uint32_t disk_id)
             {
                 len = printk("| 1 <=");
             }
-            while (len < 11)
-            {
-                printk(" ");
-                ++len;
-            }
+            put_space(len, 11);
             printk("\n");
             node = node->next;
         }

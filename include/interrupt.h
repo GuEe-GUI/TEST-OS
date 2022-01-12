@@ -150,6 +150,7 @@ void init_idt(void);
 #define PIC1_ICW4   0xA1
 
 void init_8259a(void);
-void print_interrupt();
+void print_registers(struct registers *regs);
+void print_interrupt(void);
 
 #endif /* _INTERRUPT_H_ */

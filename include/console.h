@@ -10,8 +10,8 @@
 
 void init_console(uint32_t width, uint32_t height);
 
-uint32_t get_console_cols();
-uint32_t get_console_rows();
+uint32_t get_console_cols(void);
+uint32_t get_console_rows(void);
 
 void console_out(const char *string, uint32_t color, uint32_t background);
 void console_roll(void);

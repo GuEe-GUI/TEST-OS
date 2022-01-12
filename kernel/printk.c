@@ -87,3 +87,12 @@ int printk(const char *fmt, ...)
 
     return string_length;
 }
+
+void put_space(int pos, int number)
+{
+    while (pos < number)
+    {
+        printk(" ");
+        ++pos;
+    }
+}

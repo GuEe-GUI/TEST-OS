@@ -15,8 +15,4 @@ _start:
     mov ss, ax
     mov esp, KERNEL_STACK_TOP
 
-    call entry
-
-cpu_hlt:
-    hlt
-    jmp cpu_hlt
+    jmp entry

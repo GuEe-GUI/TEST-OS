@@ -1,6 +1,7 @@
 #ifndef _THREAD_H_
 #define _THREAD_H_
 
+#include <io.h>
 #include <types.h>
 #include <timer.h>
 
@@ -46,19 +47,21 @@ struct thread
 };
 
 void __attribute__((noreturn)) start_thread(void *thread_list);
-void thread_schedule();
+void thread_schedule(void);
 int thread_create(tid_t *tid, char *name, void *handler, void *params);
-struct thread *thread_current();
+struct thread *thread_current(void);
 void thread_wake(tid_t tid);
 void thread_suspend(tid_t tid);
 void thread_wait(tid_t tid);
 void thread_exit(tid_t tid);
 struct thread *thread_list(enum THREAD_STATUS status);
-void print_thread();
+void print_thread(void);
 
-static inline void thread_yield()
+static inline void thread_yield(void)
 {
     thread_schedule();
 }
+
+extern pe_lock_t thread_lock;
 
 #endif /* _THREAD_H_ */

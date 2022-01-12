@@ -24,7 +24,7 @@ EVAL_VOID(powerdown, "Machine power down")(int argc, char**argv)
 
     /* QEMU (newer) */
     __asm__ volatile ("outw %%ax, %%dx"::"d"(0x604), "a"(0x2000));
-    /* QEMU (2.0)， bochs */
+    /* QEMU (2.0)，bochs */
     __asm__ volatile ("outw %%ax, %%dx"::"d"(0xb004), "a"(0x2000));
 
     PANIC("powerdown fail");
@@ -251,16 +251,12 @@ EVAL_VOID(dir, "Display files and directories in this directory")(int argc, char
         return;
     }
 
-    disk_id = *(uint32_t *)get_eval_path();
+    disk_id = DISK_PATH_ID(get_eval_path());
 
     while (disk_dir_read(&dir, &dir_entry) >= 0)
     {
         len = printk("%s ", dir_entry.name);
-        while (len < 16)
-        {
-            printk(" ");
-            ++len;
-        }
+        put_space(len, 16);
         if (dir_entry.attribute == DIR_ENTRY_DIR)
         {
             set_color_invert();
@@ -289,7 +285,7 @@ EVAL_VOID(rename, "Rename a file/directory")(int argc, char**argv)
         return;
     }
 
-    disk_id = *(uint32_t *)get_eval_path();
+    disk_id = DISK_PATH_ID(get_eval_path());
 
     if (disk_fs_request(disk_id, FS_FILE_RENAME, PTR_LIST(argv[1], argv[2]), NULL) &&
         disk_fs_request(disk_id, FS_DIR_RENAME, PTR_LIST(argv[1], argv[2]), NULL))
@@ -309,6 +305,27 @@ EVAL_VOID(cd, "Change disk/directory")(int argc, char**argv)
     }
 
     strcpy(path, get_eval_path());
+
+    if (argv[1][KERNEL_DISK_ID_LEN - 1] == ':')
+    {
+        uint32_t target_disk_id = DISK_PATH_ID(argv[1]);
+        uint32_t current_disk_id = DISK_PATH_ID(path);
+
+        if (argv[1][KERNEL_DISK_ID_LEN] == '\0')
+        {
+            if (target_disk_id != current_disk_id)
+            {
+                strncpy(path, argv[1], KERNEL_DISK_ID_LEN);
+                path[KERNEL_DISK_ID_LEN] = '\0';
+
+                goto set_path;
+            }
+            return;
+        }
+
+        printk("invalid disk id `%s'\n", argv[1]);
+        return;
+    }
 
     if (!strcmp(argv[1], ".."))
     {
@@ -334,6 +351,7 @@ EVAL_VOID(cd, "Change disk/directory")(int argc, char**argv)
         strcpy(&path[strlen(path)], argv[1]);
     }
 
+set_path:
     if (set_eval_path(path))
     {
         printk("entry %s fail\n", argv[1]);
@@ -422,7 +440,7 @@ EVAL_VOID(del, "Delete a file/directory")(int argc, char**argv)
         return;
     }
 
-    disk_id = *(uint32_t *)get_eval_path();
+    disk_id = DISK_PATH_ID(get_eval_path());
 
     if (disk_fs_request(disk_id, FS_FILE_DELETE, argv[1], NULL) &&
         disk_fs_request(disk_id, FS_DIR_DELETE, argv[1], NULL))
@@ -492,7 +510,7 @@ EVAL_VOID(pushf, "Push data to file")(int argc, char**argv)
 
     if (offset)
     {
-        if (disk_fs_request(*(uint32_t *)get_eval_path(), FS_FILE_SIZE, &file, &offset))
+        if (disk_fs_request(DISK_PATH_ID(get_eval_path()), FS_FILE_SIZE, &file, &offset))
         {
             offset = 0;
         }

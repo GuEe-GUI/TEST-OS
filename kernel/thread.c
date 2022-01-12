@@ -12,6 +12,8 @@ static struct thread *thread_head[THREAD_STATUS_SIZE] = {NULL};
 static struct thread *current_thread = NULL, *fix_next_thread = NULL;
 static tid_t tid_bitmap[KERNEL_THREAD_MAX / TID_BIT_NR] = {1};  /* 0号tid为缺省值 */
 
+pe_lock_t thread_lock = 0;
+
 extern void switch_to_next_thread(void *prev, void *next);
 
 static int thread_find_by_tid(tid_t tid, enum THREAD_STATUS status, struct thread** prev, struct thread **node)
@@ -37,17 +39,12 @@ static int thread_find_by_tid(tid_t tid, enum THREAD_STATUS status, struct threa
 
 static void __attribute__((noreturn)) thread_died()
 {
-    cli();
+    struct thread *thread = current_thread;
 
-    thread_exit(current_thread->tid);
+    thread_exit(thread->tid);
 
-    sti();
-
-    /* 等待被销毁 */
-    for (;;)
-    {
-        thread_yield();
-    }
+    /* 当前线程执行thread_exit后就会调度出去，并在销毁队列等待销毁，因此如果还能运行在此说明调度器一定有问题 */
+    PANIC("thread scheduler out of control");
 }
 
 void __attribute__((noreturn)) start_thread(void *thread_list)
@@ -109,16 +106,20 @@ void __attribute__((noreturn)) start_thread(void *thread_list)
 thread_cleaner_entry:
     sti();
 
+    struct thread *prev, *next, *node;
+
     for (;;)
     {
-        struct thread *prev = NULL;
-        struct thread *node = thread_head[THREAD_DIED];
+        prev = NULL;
+        node = thread_head[THREAD_DIED];
 
         while (node != NULL)
         {
             if (node->ref == 0)
             {
                 cli();
+
+                next = node->next;
 
                 if (prev != NULL)
                 {
@@ -131,9 +132,14 @@ thread_cleaner_entry:
                 }
                 /* 归还tid */
                 tid_bitmap[node->tid / TID_BIT_NR] &= ~(1 << (node->tid % TID_BIT_NR));
-                free(node);
 
                 sti();
+
+                free(node);
+
+                node = next;
+
+                continue;
             }
             prev = node;
             node = node->next;
@@ -143,7 +149,7 @@ thread_cleaner_entry:
     }
 }
 
-void thread_schedule()
+void thread_schedule(void)
 {
     cli();
 
@@ -179,7 +185,7 @@ int thread_create(tid_t *tid, char *name, void *handler, void *params)
 
     if (new_thread != NULL)
     {
-        cli();
+        pe_lock(&thread_lock);
 
         memset(new_thread, 0, KERNEL_THREAD_STACK_SIZE);
 
@@ -233,13 +239,13 @@ int thread_create(tid_t *tid, char *name, void *handler, void *params)
         free(new_thread);
 
 finsh:
-        sti();
+        pe_unlock(&thread_lock);
     }
 
     return status;
 }
 
-struct thread *thread_current()
+struct thread *thread_current(void)
 {
     ASSERT(current_thread != NULL);
 
@@ -248,11 +254,10 @@ struct thread *thread_current()
 
 void thread_wake(tid_t tid)
 {
-    struct thread *prev;
-    struct thread *node;
+    struct thread *prev, *node;
     int find_from_suspend = 0;
 
-    cli();
+    pe_lock(&thread_lock);
 
     if (!thread_find_by_tid(tid, THREAD_READY, &prev, &node) ||
         (find_from_suspend = 1, !thread_find_by_tid(tid, THREAD_SUSPEND, &prev, &node)))
@@ -279,13 +284,12 @@ void thread_wake(tid_t tid)
         thread_head[THREAD_RUNNING] = node;
     }
 
-    sti();
+    pe_unlock(&thread_lock);
 }
 
 void thread_suspend(tid_t tid)
 {
-    struct thread *prev;
-    struct thread *node;
+    struct thread *prev, *node, *current = thread_current();
 
     /* thread cleaner不能暂停 */
     if (tid == 0)
@@ -293,11 +297,10 @@ void thread_suspend(tid_t tid)
         return;
     }
 
-    cli();
+    pe_lock(&thread_lock);
 
     if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node))
     {
-        struct thread *current = thread_current();
 
         if (prev != NULL)
         {
@@ -321,18 +324,19 @@ void thread_suspend(tid_t tid)
 
         if (tid == current->tid)
         {
+            pe_unlock(&thread_lock);
+
             /* 立即切出线程，中断将会在此重新打开 */
-            thread_schedule();
+            thread_yield();
         }
     }
 
-    sti();
+    pe_unlock(&thread_lock);
 }
 
 void thread_wait(tid_t tid)
 {
-    struct thread *node;
-    struct thread *prev;
+    struct thread *node, *prev;
 
     /* thread cleaner不能被等待 */
     if (tid == 0)
@@ -340,7 +344,7 @@ void thread_wait(tid_t tid)
         return;
     }
 
-    cli();
+    pe_lock(&thread_lock);
 
     /* 不在THREAD_DIED中搜索，进入THREAD_DIED后ref值不再改变，以防止死锁发生 */
     if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node) ||
@@ -348,6 +352,7 @@ void thread_wait(tid_t tid)
     {
         ++(node->ref);
 
+        pe_unlock(&thread_lock);
         sti();
 
         while (node->status != THREAD_DIED)
@@ -358,13 +363,12 @@ void thread_wait(tid_t tid)
         --(node->ref);
     }
 
-    sti();
+    pe_unlock(&thread_lock);
 }
 
 void thread_exit(tid_t tid)
 {
-    struct thread *node;
-    struct thread *prev;
+    struct thread *node, *prev, *current = thread_current();
     int find_from_suspend = 0;
 
     /* thread cleaner不能结束 */
@@ -373,12 +377,11 @@ void thread_exit(tid_t tid)
         return;
     }
 
-    cli();
+    pe_lock(&thread_lock);
 
     if (!thread_find_by_tid(tid, THREAD_RUNNING, &prev, &node) ||
         (find_from_suspend = 1, !thread_find_by_tid(tid, THREAD_SUSPEND, &prev, &node)))
     {
-        struct thread *current = thread_current();
 
         if (prev != NULL)
         {
@@ -417,12 +420,14 @@ void thread_exit(tid_t tid)
 
         if (tid == current->tid)
         {
+            pe_unlock(&thread_lock);
+
             /* 立即切出线程，中断将会在此重新打开 */
-            thread_schedule();
+            thread_yield();
         }
     }
 
-    sti();
+    pe_unlock(&thread_lock);
 }
 
 struct thread *thread_list(enum THREAD_STATUS status)
@@ -432,7 +437,7 @@ struct thread *thread_list(enum THREAD_STATUS status)
     return thread_head[status];
 }
 
-void print_thread()
+void print_thread(void)
 {
     int len;
     struct thread *node;
@@ -445,7 +450,7 @@ void print_thread()
         [THREAD_DIED] = "died"
     };
 
-    cli();
+    pe_lock(&thread_lock);
 
     set_color_invert();
     printk(" thread name     | tid       | status  ");
@@ -457,23 +462,15 @@ void print_thread()
         while (node != NULL)
         {
             len = printk(" %s", node->name);
-            while (len < KERNEL_THREAD_NAME_LEN)
-            {
-                printk(" ");
-                ++len;
-            }
+            put_space(len, KERNEL_THREAD_NAME_LEN);
             printk(" | ");
             len = printk("%d", node->tid);
-            while (len < 10)
-            {
-                printk(" ");
-                ++len;
-            }
+            put_space(len, 10);
             printk("| %s\n", status_title[status]);
             node = node->next;
         }
         ++status;
     }
 
-    sti();
+    pe_unlock(&thread_lock);
 }

@@ -8,7 +8,7 @@
 #include <timer.h>
 #include <version.h>
 
-extern void eval_void_start();
+extern void eval_void_start(void);
 
 static char cmdline_buffer[EVAL_CHAR_MAX];
 static char *cmdline_args[EVAL_ARGS_MAX];
@@ -32,7 +32,33 @@ EVAL_VOID(help, "Display this information")(int argc, char**argv)
     }
 }
 
-char *get_eval_path()
+static int check_root_path(uint32_t start_disk, uint32_t end_disk)
+{
+    int i;
+    char current_path_backup[sizeof(current_path)];
+
+    strcpy(current_path_backup, current_path);
+    memset(current_path, 0, sizeof(current_path));
+
+    for (i = start_disk; i <= end_disk; ++i)
+    {
+        struct dir dir;
+        DISK_PATH_ID(&current_path[0]) = i;
+        current_path[KERNEL_DISK_ID_LEN] = '/';
+
+        if (!disk_dir_open(current_path, &dir))
+        {
+            disk_dir_close(&dir);
+            return 0;
+        }
+    }
+
+    strcpy(current_path, current_path_backup);
+
+    return -1;
+}
+
+char *get_eval_path(void)
 {
     static char current_path_cache[sizeof(current_path)];
 
@@ -46,6 +72,14 @@ int set_eval_path(char *path)
     if (path != NULL)
     {
         struct dir dir;
+        uint32_t target_disk_id = DISK_PATH_ID(path);
+        uint32_t current_disk_id = DISK_PATH_ID(current_path);
+
+        if (target_disk_id != current_disk_id &&
+            target_disk_id >= KERNEL_DISK_ID_START && target_disk_id <= KERNEL_DISK_ID_END)
+        {
+            return check_root_path(target_disk_id, target_disk_id);
+        }
 
         if (!disk_dir_open(path, &dir))
         {
@@ -67,31 +101,14 @@ int set_eval_path(char *path)
     return -1;
 }
 
-void eval()
+void eval(void)
 {
     const char back_force[] = {CONSOLE_BACK_FORCE, '\0'};
     uint8_t ch;
     int i;
 
-    memset(current_path, 0, sizeof(current_path));
-
-    for (i = KERNEL_DISK_ID_START; i < KERNEL_DISK_ID_END; ++i)
-    {
-        struct dir dir;
-        *((uint16_t *)&current_path[0]) = i;
-        current_path[sizeof(uint16_t)] = '/';
-
-        if (!disk_dir_open(current_path, &dir))
-        {
-            disk_dir_close(&dir);
-            break;
-        }
-    }
-
-    if (i >= KERNEL_DISK_ID_END)
-    {
-        strcpy(current_path, "(NULL)");
-    }
+    strcpy(current_path, "(NULL)");
+    check_root_path(KERNEL_DISK_ID_START, KERNEL_DISK_ID_END);
 
     printk("Welcome to eval v"OS_VERSION".\nType \"help\" for more information.\n\n");
 

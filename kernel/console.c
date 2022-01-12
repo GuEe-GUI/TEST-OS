@@ -68,12 +68,12 @@ void init_console(uint32_t width, uint32_t height)
     LOG("console width = %dPX, height = %dPX", console.width, console.height);
 }
 
-uint32_t get_console_cols()
+uint32_t get_console_cols(void)
 {
     return console.max_x / FONT_W;
 }
 
-uint32_t get_console_rows()
+uint32_t get_console_rows(void)
 {
     return console.max_y / FONT_H;
 }
@@ -100,6 +100,10 @@ static void console_cur(int flush_old, int flush_new)
 
 void console_out(const char *string, uint32_t color, uint32_t background)
 {
+    int interrupt_flag;
+
+    cli_inherit(&interrupt_flag);
+
     if (color ^ background)
     {
         set_color(color, background);
@@ -170,10 +174,16 @@ void console_out(const char *string, uint32_t color, uint32_t background)
         }
         string++;
     }
+
+    sti_inherit(&interrupt_flag);
 }
 
 void console_roll(void)
 {
+    int interrupt_flag;
+
+    cli_inherit(&interrupt_flag);
+
     console.x = 0;
     console.y += FONT_H;
 
@@ -185,10 +195,17 @@ void console_roll(void)
 
         console.y -= FONT_H;
     }
+
+    sti_inherit(&interrupt_flag);
 }
 
 void console_cls(void)
 {
+    int interrupt_flag;
+    cli_inherit(&interrupt_flag);
+
     put_dword_pixels(0, 0, console.width, console.height, RED(console.clear), GREEN(console.clear), BLUE(console.clear));
     console.x = console.y = 0;
+
+    sti_inherit(&interrupt_flag);
 }

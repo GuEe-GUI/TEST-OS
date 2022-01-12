@@ -29,11 +29,11 @@ struct rtc_time
     uint32_t year;
 };
 
-void init_rtc();
+void init_rtc(void);
 int get_update_in_progress_flag(void);
 uint8_t get_rtc_register(int reg);
 struct rtc_time *read_rtc(void);
-unsigned long get_timestamp();
+unsigned long get_timestamp(void);
 unsigned long to_timestamp(uint32_t year, uint32_t month, uint32_t day, uint32_t hour, uint32_t minute, uint32_t second);
 
 #endif /* _RTC_H_ */

@@ -4,7 +4,7 @@
 
 static struct rtc_time time;
 
-void init_rtc()
+void init_rtc(void)
 {
     cli();                      /* 关中断 */
 
@@ -23,7 +23,7 @@ void init_rtc()
     LOG("rtc time = %d/%d/%d %d:%d:%d", time.year, time.month, time.day, time.hour, time.minute, time.second);
 }
 
-int get_update_in_progress_flag()
+int get_update_in_progress_flag(void)
 {
     io_out8(0x70, 0x0A);
     return (io_in8(0x71) & 0x80);
@@ -35,7 +35,7 @@ uint8_t get_rtc_register(int reg)
     return io_in8(0x71);
 }
 
-struct rtc_time *read_rtc()
+struct rtc_time *read_rtc(void)
 {
     uint8_t century;
     uint8_t last_second;
@@ -106,7 +106,7 @@ struct rtc_time *read_rtc()
     return &time;
 }
 
-unsigned long get_timestamp()
+unsigned long get_timestamp(void)
 {
     read_rtc();
 

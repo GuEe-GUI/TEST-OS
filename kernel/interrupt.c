@@ -55,22 +55,22 @@ void interrupt_disable(uint8_t vector)
     }
 }
 
-void isr_handler(struct registers *registers)
+void isr_handler(struct registers *regs)
 {
-    if (interrupt_handlers[registers->interrupt_vector] != NULL)
+    if (interrupt_handlers[regs->interrupt_vector] != NULL)
     {
-        interrupt_handlers[registers->interrupt_vector](registers);
+        interrupt_handlers[regs->interrupt_vector](regs);
     }
     else
     {
-        PANIC("unhook interrupt vector: %d", registers->interrupt_vector);
+        PANIC("unhook interrupt vector: %d", regs->interrupt_vector);
     }
 }
 
-void irq_handler(struct registers *registers)
+void irq_handler(struct registers *regs)
 {
     /* 发送重置信号 */
-    if (registers->interrupt_vector >= 40)
+    if (regs->interrupt_vector >= 40)
     {
         /* 主 */
         io_out8(PIC1_ICW1, 0x20);
@@ -78,9 +78,9 @@ void irq_handler(struct registers *registers)
     /* 从 */
     io_out8(PIC0_OCW2, 0x20);
 
-    if (interrupt_handlers[registers->interrupt_vector] != NULL)
+    if (interrupt_handlers[regs->interrupt_vector] != NULL)
     {
-        interrupt_handlers[registers->interrupt_vector](registers);
+        interrupt_handlers[regs->interrupt_vector](regs);
     }
 }
 
@@ -170,7 +170,42 @@ void init_8259a(void)
     LOG("interrupt control is 8259a");
 }
 
-void print_interrupt()
+void print_registers(struct registers *regs)
+{
+    int len;
+
+    printk("kernel:\n");
+    len = printk("cs  = 0x%x", regs->cs);
+    put_space(len, 17);
+    len = printk("ds  = 0x%x", regs->ds);
+    put_space(len, 17);
+    printk("eflags = 0x%x\n", regs->eflags);
+
+    len = printk("edi = 0x%x", regs->edi);
+    put_space(len, 17);
+    len = printk("esi = 0x%x", regs->esi);
+    put_space(len, 17);
+    printk("ebp = 0x%x\n", regs->ebp);
+
+    len = printk("esp = 0x%x", regs->esp);
+    put_space(len, 17);
+    len = printk("ebx = 0x%x", regs->ebx);
+    put_space(len, 17);
+    printk("edx = 0x%x\n", regs->edx);
+
+    len = printk("ecx = 0x%x", regs->ecx);
+    put_space(len, 17);
+    len = printk("eax = 0x%x", regs->eax);
+    put_space(len, 17);
+    printk("eip = 0x%x\n", regs->eip);
+
+    printk("user:\n");
+    len = printk("ss = 0x%x", regs->user_ss);
+    put_space(len, 17);
+    printk("esp = 0x%x", regs->user_esp);
+}
+
+void print_interrupt(void)
 {
     int i, base, limite, len;
     const char *interrupt_type[] =
@@ -241,25 +276,13 @@ print_continue:
             continue;
         }
         len = printk(" %d", i + base);
-        while (len < 18)
-        {
-            printk(" ");
-            ++len;
-        }
+        put_space(len, 18);
         printk("|");
         len = printk(" %s", interrupt_type[info[i].type]);
-        while (len < 12)
-        {
-            printk(" ");
-            ++len;
-        }
+        put_space(len, 12);
         printk("|");
         len = printk(" %s", interrupt_handlers[i + base] == NULL ? "unused" : "using");
-        while (len < 8)
-        {
-            printk(" ");
-            ++len;
-        }
+        put_space(len, 8);
         printk("| %s\n", info[i].instructions);
     }
 

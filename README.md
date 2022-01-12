@@ -12,5 +12,5 @@
 
 ## 3、运行效果
 ![展示](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/show.png "展示")
-![磁盘](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/disk.png "磁盘")
 ![帮助](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/help.png "帮助")
+![磁盘](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/disk.png "磁盘")

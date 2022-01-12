@@ -8,6 +8,29 @@
 #define sti() __asm__ volatile ("sti")
 #define nop() __asm__ volatile ("nop")
 
+static inline void cli_inherit(int *eflags)
+{
+    __asm__ volatile (
+        "pushf\n\r"
+        "pop %0\n\r"
+        "cli"
+        :"=rm"(*eflags));
+}
+
+static inline void sti_inherit(int *eflags)
+{
+    /* IF位为第9位，表示中断是否打开 */
+    if ((*eflags & (1 << 9)))
+    {
+        sti();
+    }
+}
+
+typedef volatile uint32_t pe_lock_t;
+
+void pe_lock(pe_lock_t *lock);
+void pe_unlock(pe_lock_t *lock);
+
 extern void io_out8(uint32_t port, uint8_t data);
 extern void io_out16(uint32_t port, uint16_t data);
 extern void io_out32(uint32_t port, uint32_t data);

@@ -421,14 +421,14 @@ INIT_KERNEL:
    mov dx, [KERNEL_BIN_BASE_ADDR + 42]      ; 偏移42字节：e_phentsize
    mov ebx, [KERNEL_BIN_BASE_ADDR + 28]     ; 偏移28字节：e_phoff，第一个program header偏移量
    add ebx, KERNEL_BIN_BASE_ADDR
-   mov cx, [KERNEL_BIN_BASE_ADDR + 44]      ; 偏移44字节： e_phnum
+   mov cx, [KERNEL_BIN_BASE_ADDR + 44]      ; 偏移44字节：e_phnum
 
 .EACH_SEGMENT:
    cmp byte [ebx + 0], 0                    ; PT_NULL
    je .PTNULL
 
    push dword [ebx + 16]                    ; 程序头中16字节的偏移量是p_filesz，函数memcpy的第三个参数：size
-   mov eax, [ebx + 4]                       ; 从程序头偏移 4 个字节的位置为 p_offset
+   mov eax, [ebx + 4]                       ; 从程序头偏移 4个字节的位置为 p_offset
    add eax, KERNEL_BIN_BASE_ADDR            ; 加上kernel.bin加载到的物理地址，eax就是段的物理地址
    push eax                                 ; Push函数memcpy的第二个参数：源地址
    push dword [ebx + 8]                     ; Push函数memcpy的第一个参数：目的地址，偏移程序的前8个字节的位置是p_vaddr，也就是目的地址
@@ -504,12 +504,12 @@ SET_CUR_IN_32BITS:
     ret
 
 ; 要打印的字符串信息
-BOOT_OK_MSG             db  '[ OK ] Boot '              ; 字符串长度： 12
-MEMORY_OK_MSG           db  '[ OK ] Get Memory '        ; 字符串长度： 18
-MEMORY_ERROR_MSG        db  'Get Memory Failed! '       ; 字符串长度： 19
-VGA_MODE_FAIL_MSG       db  'Set VGA MODE Fail! '       ; 字符串长度： 19
-PROTECTED_MODE_OK_MSG   db  '[ OK ] Protected Mode '    ; 字符串长度： 22
-PAGING_OK_MSG           db  '[ OK ] Paging Mode '       ; 字符串长度： 19
-LOADING_SYSTEM_MSG      db  'Loading System... '        ; 字符串长度： 18
+BOOT_OK_MSG             db  '[ OK ] Boot '              ; 字符串长度：12
+MEMORY_OK_MSG           db  '[ OK ] Get Memory '        ; 字符串长度：18
+MEMORY_ERROR_MSG        db  'Get Memory Failed! '       ; 字符串长度：19
+VGA_MODE_FAIL_MSG       db  'Set VGA MODE Fail! '       ; 字符串长度：19
+PROTECTED_MODE_OK_MSG   db  '[ OK ] Protected Mode '    ; 字符串长度：22
+PAGING_OK_MSG           db  '[ OK ] Paging Mode '       ; 字符串长度：19
+LOADING_SYSTEM_MSG      db  'Loading System... '        ; 字符串长度：18
 
 times 4096 - ($ - $$) db 0

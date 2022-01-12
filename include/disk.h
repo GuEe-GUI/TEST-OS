@@ -5,8 +5,11 @@
 
 #define KERNEL_DISK_ID_START    0x3a61  /* "a:" */
 #define KERNEL_DISK_ID_END      0x3a7a  /* "z:" */
+#define KERNEL_DISK_ID_LEN      (sizeof(uint16_t))
 
 #define KERNEL_DISK_MAX_PATH    128
+
+#define DISK_PATH_ID(path)      (*(uint16_t *)path)
 
 struct file
 {
@@ -107,7 +110,7 @@ struct disk
 
 struct disk *disk_register(char *name);
 void disk_format(uint32_t id, char *fs_type);
-void init_disk();
+void init_disk(void);
 int disk_file_open(const char *path, struct file *file);
 int disk_file_close(struct file* file);
 size_t disk_file_read(struct file *file, void *buffer, off_t offset, size_t length);

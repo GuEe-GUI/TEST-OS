@@ -29,12 +29,13 @@ if (!(expression))                                      \
 #define PANIC(fmt, ...)                                 \
 do {                                                    \
     cli();                                              \
-    set_color(0xbc81b5ff, CONSOLE_CLEAR);               \
+    set_color(0x8250dfff, CONSOLE_CLEAR);               \
     printk(fmt, ##__VA_ARGS__);                         \
     ASSERT(0);                                          \
 } while (0)
 
 int printk(const char *fmt, ...);
+void put_space(int pos, int number);
 void __attribute__((noreturn)) assert(const char *file, uint32_t line, const char *func, const char *expression);
 
 #endif /* _KERNEL_H_ */

@@ -36,71 +36,64 @@ static inline void init_ards()
 
 static inline void memory_remap()
 {
-    int i, j;
+    int i;
+    uint32_t map_vaddr = KERNEL_MAP_BASE_VADDR + KERNEL_MAP_EARLY_SIZE;
+    uint32_t map_paddr = KERNEL_MAP_BASE_PADDR + KERNEL_MAP_EARLY_SIZE;
+    uint32_t *dir_paddr = (uint32_t *)KERNEL_PAGE_DIR_PADDR;
+    uint32_t *tbl_paddr = (uint32_t *)KERNEL_REMAP_PAGE_PADDR;
 
-    uint32_t map_vaddr;
-    uint32_t map_paddr;
-    uint32_t dir_limit;
-
-    uint32_t *dir_paddr = (void *)KERNEL_PAGE_DIR_PADDR;
-    uint32_t *tbl_paddr = (void *)KERNEL_VA_PAGE_PADDR;
-
-    /* 内核只需要最多大约1G内存空间，映射的内存区域[0 ~ KERNEL_PAGE_MAP_MAX] */
-    if (total_memory_bytes > KERNEL_PAGE_MAP_MAX)
+    /* 内核只需要最多大约1G内存空间，映射的内存区域[0 ~ KERNEL_MAP_ADDR_MAX] */
+    if (total_memory_bytes > KERNEL_MAP_ADDR_MAX)
     {
-        total_memory_bytes = KERNEL_PAGE_MAP_MAX;
+        total_memory_bytes = KERNEL_MAP_ADDR_MAX;
     }
 
-    /* 从物理地址0x00000000开始映射 */
-    map_paddr = 0x00000000;
-    map_vaddr = KERNEL_MAP_BASE_VADDR;
     /* 页目录总共4k，可映射4G内存，则 / 4M */
-    dir_limit = total_memory_bytes / (4 * MB);
-
-    for (i = 0; i < dir_limit; ++i)
+    while (map_paddr <= total_memory_bytes)
     {
         /* 页目录[31:22]，设置当前基地址对应的页表项 */
         dir_paddr[map_vaddr >> 22] = (uint32_t)tbl_paddr | KERNEL_PAGE_ATTR;
 
         /* 填写每个页表项，1024（4KB / sizeof(void *)）个entry */
-        for (j = 0; j < 1024; ++j)
+        for (i = 0; i < 1024 && map_paddr <= total_memory_bytes; ++i)
         {
             /* 页表[21:12]，映射4K物理地址 */
             tbl_paddr[(map_vaddr >> 12) & 0x3ff] = map_paddr | KERNEL_PAGE_ATTR;
+
+            map_vaddr += PAGE_SIZE;
             map_paddr += PAGE_SIZE;
         }
         tbl_paddr += 1024;
-
-        /* 准备映射下一个4M的地址 */
-        map_vaddr += 4 * MB;
     }
 
     /* 前4K给空指针NULL预留，设置属性为无效内存 */
     ((uint32_t *)KERNEL_PA_PAGE_PADDR)[0] = 0 | PAGE_ATTR_NOT_PRESENT;
     ((uint32_t *)KERNEL_VA_PAGE_PADDR)[0] = 0 | PAGE_ATTR_NOT_PRESENT;
 
-    /* 内核在加载前就已经映射4M */
-    LOG("new map physical memory range = <4MB %dMB>", total_memory_bytes / (1 * MB));
-    LOG("new map virtual memory range = <0x%p 0x%p>", KERNEL_MAP_BASE_VADDR + 4 * MB, KERNEL_MAP_BASE_VADDR + total_memory_bytes);
+    LOG("remap physical memory range = <%dMB %dMB>", (KERNEL_MAP_BASE_PADDR + KERNEL_MAP_EARLY_SIZE) / (1 * MB), total_memory_bytes / (1 * MB));
+    LOG("remap virtual memory range = <0x%p 0x%p>", KERNEL_MAP_BASE_VADDR + KERNEL_MAP_EARLY_SIZE, map_paddr - PAGE_SIZE);
 }
 
-void __attribute__((noreturn)) page_failure_isr(struct registers *reg)
+void __attribute__((noreturn)) page_failure_isr(struct registers *regs)
 {
-    PANIC("page failure error in eip = 0x%p, esp = 0x%p", reg->eip, reg->esp);
+    set_color(0x8250dfff, CONSOLE_CLEAR);
+    printk("page failure error\n");
+    print_registers(regs);
+    ASSERT(0);
 }
 
-void init_memory()
+void init_memory(void)
 {
     init_ards();
     memory_remap();
 
     interrupt_register(14, page_failure_isr);
 
-    LOG("kernel stack top addr = 0x%p", KERNEL_STACK_TOP);
+    LOG("kernel stack top addr = 0x%p, size = %dB", KERNEL_STACK_TOP, KERNEL_STACK_SIZE);
     LOG("memory hook page failure");
 }
 
-uint32_t get_total_memory_bytes()
+uint32_t get_total_memory_bytes(void)
 {
     return total_memory_bytes;
 }

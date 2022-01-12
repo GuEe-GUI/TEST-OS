@@ -4,8 +4,8 @@
 #include <types.h>
 
 void init_keyboard(void);
-uint8_t get_key();
+uint8_t get_key(void);
 
-void init_ide();
+void init_ide(void);
 
 #endif /* _DEVICE_H_ */

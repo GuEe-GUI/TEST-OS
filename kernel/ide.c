@@ -4,9 +4,6 @@
 #include <kernel.h>
 
 /* ATA */
-#define ATA_TYPE_MASTER         0x00
-#define ATA_TYPE_SLAVE          0x01
-
 #define ATA_DRIVE_MASTER        0xA0
 #define ATA_DRIVE_SLAVE         0xB0
 
@@ -17,22 +14,14 @@
 #define ATA_CTL_PRI_SECONDARY   0x376
 
 #define ATA_REG_DATA            0x00
-#define ATA_REG_ERROR           0x01
-#define ATA_REG_FEATURES        0x01
-#define ATA_REG_SECCOUNT0       0x02
-#define ATA_REG_LBA0            0x03
-#define ATA_REG_LBA1            0x04
-#define ATA_REG_LBA2            0x05
-#define ATA_REG_HDDEVSEL        0x06
+#define ATA_REG_ERROR_FEATURES  0x01
+#define ATA_REG_SECTOR_CNT      0x02
+#define ATA_REG_SECTOR_LOW      0x03
+#define ATA_REG_SECTOR_MID      0x04
+#define ATA_REG_SECTOR_HIGH     0x05
+#define ATA_REG_DEVICE_SELECT   0x06
 #define ATA_REG_COMMAND         0x07
-#define ATA_REG_STATUS          0x07
-#define ATA_REG_SECCOUNT1       0x08
-#define ATA_REG_LBA3            0x09
-#define ATA_REG_LBA4            0x0A
-#define ATA_REG_LBA5            0x0B
-#define ATA_REG_CONTROL         0x0C
-#define ATA_REG_ALTSTATUS       0x0C
-#define ATA_REG_DEVADDRESS      0x0D
+#define ATA_REG_STATUS          ATA_REG_COMMAND
 
 #define ATA_PIO_FLAG_READ       0x00
 #define ATA_PIO_FLAG_WRITE      0x01
@@ -62,20 +51,14 @@
 #define ATA_SR_IDX              0x02    /* Index */
 #define ATA_SR_ERR              0x01    /* Error */
 
-/* SATA */
-#define SATA_LBAMID_PRI         0x1f4
-#define SATA_LBAHI_PRI          0x1f5
-#define SATA_INT_GET_RET        0x3c
-
 #define IDE_INFO_BLOCK_SIZE     512
 
-#define IDE_NAME(type, bus)   \
-    (type == ATA_TYPE_MASTER ? "master" : "slave"), \
+#define IDE_NAME(drive, bus)   \
+    (drive == ATA_DRIVE_MASTER ? "master" : "slave"), \
     (bus == ATA_BUS_PRIMARY ? "primary" : "secondary")
 
 struct ide
 {
-    uint8_t type;
     uint8_t drive;
     uint16_t bus;
     uint16_t ctrl;
@@ -83,40 +66,42 @@ struct ide
 
 static struct ide ide_devices[4] =
 {
-    { .type = ATA_TYPE_MASTER, .drive = ATA_DRIVE_MASTER, .bus = ATA_BUS_PRIMARY,   .ctrl = ATA_CTL_PRI_PRIMARY   },
-    { .type = ATA_TYPE_SLAVE,  .drive = ATA_DRIVE_SLAVE,  .bus = ATA_BUS_PRIMARY,   .ctrl = ATA_CTL_PRI_PRIMARY   },
-    { .type = ATA_TYPE_MASTER, .drive = ATA_DRIVE_MASTER, .bus = ATA_BUS_SECONDARY, .ctrl = ATA_CTL_PRI_SECONDARY },
-    { .type = ATA_TYPE_SLAVE,  .drive = ATA_DRIVE_SLAVE,  .bus = ATA_BUS_SECONDARY, .ctrl = ATA_CTL_PRI_SECONDARY },
+    { .drive = ATA_DRIVE_MASTER, .bus = ATA_BUS_PRIMARY,   .ctrl = ATA_CTL_PRI_PRIMARY   },
+    { .drive = ATA_DRIVE_SLAVE,  .bus = ATA_BUS_PRIMARY,   .ctrl = ATA_CTL_PRI_PRIMARY   },
+    { .drive = ATA_DRIVE_MASTER, .bus = ATA_BUS_SECONDARY, .ctrl = ATA_CTL_PRI_SECONDARY },
+    { .drive = ATA_DRIVE_SLAVE,  .bus = ATA_BUS_SECONDARY, .ctrl = ATA_CTL_PRI_SECONDARY },
 };
 
-static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, int sector_count, int pio_flag)
+static int ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, int sector_count, int pio_flag)
 {
-    int status, i, j;
-    uint8_t type = ide_ata_device->type;
+    int status, cmd, i, j;
+    uint8_t drive = ide_ata_device->drive;
     uint16_t bus = ide_ata_device->bus;
     uint16_t ctrl = ide_ata_device->ctrl;
 
+    /* 一次最多读取256个扇区 */
     if (sector_count > IDE_INFO_BLOCK_SIZE / 2)
     {
-        return;
+        goto fail;
     }
-    else if (sector_count == IDE_INFO_BLOCK_SIZE / 2)
-    {
-        sector_count = 0;
-    }
-    /* 判断等待状态 */
+    sector_count = (uint8_t)sector_count;
+
+    /* 一直读取状态，等待清除忙等状态 */
     while (io_in8(bus + ATA_REG_STATUS) & ATA_SR_BSY) {}
 
-    io_out8(bus + ATA_REG_HDDEVSEL, 0xE0 | (type << 4) | ((LBA >> 24) & 0x0F));
-    io_out8(bus + ATA_REG_SECCOUNT0, (unsigned char) sector_count);
-    io_out8(bus + ATA_REG_LBA0, (unsigned char) LBA);
-    io_out8(bus + ATA_REG_LBA1, (unsigned char) (LBA >> 8));
-    io_out8(bus + ATA_REG_LBA2, (unsigned char) (LBA >> 16));
-    int cmd = (sector_count == 1) ? ATA_CMD_READ_PIO :  ATA_CMD_READ_MULTIPLE;
+    io_out8(bus + ATA_REG_DEVICE_SELECT, (drive == ATA_DRIVE_MASTER ? 0xE0 : 0xF0) | ((LBA >> 24) & 0x0F));
+    io_out8(bus + ATA_REG_SECTOR_CNT, sector_count);
+    io_out8(bus + ATA_REG_SECTOR_LOW, (uint8_t)LBA);
+    io_out8(bus + ATA_REG_SECTOR_MID, (uint8_t)(LBA >> 8));
+    io_out8(bus + ATA_REG_SECTOR_HIGH, (uint8_t)(LBA >> 16));
 
     if (pio_flag == ATA_PIO_FLAG_WRITE)
     {
-        cmd = (sector_count == 1) ? ATA_CMD_WRITE_PIO :  ATA_CMD_WRITE_MULTIPLE;
+        cmd = (sector_count == 1) ? ATA_CMD_WRITE_PIO : ATA_CMD_WRITE_MULTIPLE;
+    }
+    else
+    {
+        cmd = (sector_count == 1) ? ATA_CMD_READ_PIO : ATA_CMD_READ_MULTIPLE;
     }
     io_out8(bus + ATA_REG_COMMAND, cmd);
 
@@ -127,7 +112,7 @@ static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, in
 
     for (j = 0; j < sector_count; j++)
     {
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < 4; ++i)
         {
             status = io_in8(ctrl);
         }
@@ -136,12 +121,13 @@ static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, in
 
         if ((status & ATA_SR_ERR) || (status & ATA_SR_DF))
         {
-            printk("ata %s %d sectors from (%s:%s) fail\n", pio_flag == ATA_PIO_FLAG_WRITE ? "write" : "read", sector_count, IDE_NAME(type, bus));
-            return;
+            printk("ata %s %d sectors from (%s:%s) fail\n", pio_flag == ATA_PIO_FLAG_WRITE ? "write" : "read", sector_count, IDE_NAME(drive, bus));
+            goto fail;
         }
 
         for (i = 0; i < IDE_INFO_BLOCK_SIZE / 2; ++i, ++buffer)
         {
+            /* 读写数据 */
             if (pio_flag == ATA_PIO_FLAG_WRITE)
             {
                 io_out16(bus + ATA_REG_DATA, *buffer);
@@ -151,106 +137,122 @@ static void ata_rw_pio(struct ide *ide_ata_device, int LBA, uint16_t *buffer, in
                 *buffer = io_in16(bus + ATA_REG_DATA);
             }
         }
+        /* 写数据同步 */
         if (pio_flag == ATA_PIO_FLAG_WRITE)
         {
             io_out8(bus + ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
         }
     }
+
+    return 0;
+
+fail:
+    return -1;
 }
 
 static size_t ata_read(struct disk *disk, off_t sector_number, void *buffer, int sector_count)
 {
-    ata_rw_pio((struct ide *)disk->device, sector_number, buffer, sector_count, ATA_PIO_FLAG_READ);
+    int status = ata_rw_pio((struct ide *)disk->device, sector_number, buffer, sector_count, ATA_PIO_FLAG_READ);
 
-    return sector_count * IDE_INFO_BLOCK_SIZE;
+    return (status < 0 ? 0 : sector_count * IDE_INFO_BLOCK_SIZE);
 }
 
 static size_t ata_write(struct disk *disk, off_t sector_number, const void *buffer, int sector_count)
 {
-    ata_rw_pio((struct ide *)disk->device, sector_number, (void *)buffer, sector_count, ATA_PIO_FLAG_WRITE);
+    int status = ata_rw_pio((struct ide *)disk->device, sector_number, (void *)buffer, sector_count, ATA_PIO_FLAG_WRITE);
 
-    return sector_count * IDE_INFO_BLOCK_SIZE;
+    return (status < 0 ? 0 : sector_count * IDE_INFO_BLOCK_SIZE);
 }
 
-int ide_identify(struct ide *ide_device)
+static int ide_identify(struct ide *ide_device)
 {
+    char *type;
     int status, i;
-    uint8_t type = ide_device->type;
+    uint8_t drive = ide_device->drive;
     uint16_t bus = ide_device->bus;
-    uint16_t identify_data[IDE_INFO_BLOCK_SIZE / 2] __attribute__((unused));
+    uint16_t identify_data[IDE_INFO_BLOCK_SIZE / 2];
     struct disk *disk;
 
-    status = io_in8(bus + ATA_REG_STATUS);
-
-    io_out8(bus + ATA_REG_HDDEVSEL, 0xA0 | type << 4);
-    io_out8(bus + ATA_REG_SECCOUNT0, 0);
-    io_out8(bus + ATA_REG_LBA0, 0);
-    io_out8(bus + ATA_REG_LBA1, 0);
-    io_out8(bus + ATA_REG_LBA2, 0);
-    io_out8(bus + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
+    io_out8(bus + ATA_REG_DEVICE_SELECT, drive);        /* 选择驱动器 */
+    io_out8(bus + ATA_REG_SECTOR_CNT, 0);
+    io_out8(bus + ATA_REG_SECTOR_LOW, 0);
+    io_out8(bus + ATA_REG_SECTOR_MID, 0);
+    io_out8(bus + ATA_REG_SECTOR_HIGH, 0);
+    io_out8(bus + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);   /* 确认驱动器 */
 
     if ((status = io_in8(bus + ATA_REG_STATUS)) == 0)
     {
-        LOG("ide(%s:%s) does not exist", IDE_NAME(type, bus));
+        LOG("ide(%s:%s) does not exist", IDE_NAME(drive, bus));
 
-        return -1;
-    }
-
-    while ((status = io_in8(bus + ATA_REG_STATUS)) & ATA_SR_BSY) {}
-
-    if (io_in8(bus + ATA_REG_LBA1) == 0 && io_in8(bus + ATA_REG_LBA2) == 0)
-    {
-        while (!((status = io_in8(bus + ATA_REG_STATUS)) & ATA_SR_DRQ) && !(status & ATA_SR_ERR)) {}
-
-        if (status & ATA_SR_ERR)
-        {
-            LOG("ide(%s:%s) using ata init fail", IDE_NAME(type, bus));
-
-            return -1;
-        }
-
-        for (i = 0; i < IDE_INFO_BLOCK_SIZE / 2; i++)
-        {
-            identify_data[i] = io_in16(bus + ATA_REG_DATA);
-        }
-
-        disk = disk_register("ata ide");
-        disk->device_read = &ata_read;
-        disk->device_write = &ata_write;
-        disk->device = ide_device;
-
-        if (disk != NULL)
-        {
-            uint32_t cylinders = identify_data[1];
-            uint32_t heads = identify_data[3];
-            uint32_t sector_count = identify_data[6];
-
-            disk->total = (cylinders * heads * sector_count / 2048 + 1) * MB;
-
-            LOG("ide(%s:%s) using ata is ready", IDE_NAME(type, bus));
-
-            return 0;
-        }
-
-        return -1;
-    }
-    else if (io_in8(SATA_LBAMID_PRI) == SATA_INT_GET_RET || io_in8(SATA_LBAHI_PRI) == SATA_INT_GET_RET)
-    {
-        LOG("ide(%s:%s) using %s is not supported yet", IDE_NAME(type, bus), "sata");
-
-        return -1;
+        goto fail;
     }
     else
     {
-        LOG("ide(%s:%s) using %s is not supported yet", IDE_NAME(type, bus), "atapi");
+        uint8_t cl = io_in8(bus + ATA_REG_SECTOR_MID);
+        uint8_t ch = io_in8(bus + ATA_REG_SECTOR_HIGH);
 
-        return -1;
+        do {
+            if (cl == 0 && ch == 0)
+            {
+                type = "pata";
+                break;
+            }
+            if (cl == 0x14 && ch == 0xEB)
+            {
+                type = "patapi";
+            }
+            if (cl == 0x69 && ch == 0x96)
+            {
+                type = "satapi";
+            }
+            if (cl == 0x3c && ch == 0xc3)
+            {
+                type = "sata";
+            }
+
+            LOG("ide(%s:%s) using %s is %s", IDE_NAME(drive, bus), type, "not supported yet");
+
+            goto fail;
+        } while (0);
+    }
+
+    /* 一直读取状态，等待驱动器清除忙等状态 */
+    while (!((status = io_in8(bus + ATA_REG_STATUS)) & ATA_SR_DRQ) && !(status & ATA_SR_ERR)) {}
+
+    if (status & ATA_SR_ERR)
+    {
+        LOG("ide(%s:%s) init fail", IDE_NAME(drive, bus));
+
+        goto fail;
+    }
+
+    /* 读取驱动器信息 */
+    for (i = 0; i < IDE_INFO_BLOCK_SIZE / 2; ++i)
+    {
+        identify_data[i] = io_in16(bus + ATA_REG_DATA);
+    }
+
+    if ((disk = disk_register("patapi ide")) != NULL)
+    {
+        uint32_t cylinders = identify_data[1];
+        uint32_t heads = identify_data[3];
+        uint32_t sector_count = identify_data[6];
+
+        disk->device_read = &ata_read;
+        disk->device_write = &ata_write;
+        disk->device = ide_device;
+        disk->total = (cylinders * heads * sector_count / 2048 + 1) * MB;
+
+        LOG("ide(%s:%s) using %s is %s", IDE_NAME(drive, bus), type, "ready");
     }
 
     return 0;
+
+fail:
+    return -1;
 }
 
-void init_ide()
+void init_ide(void)
 {
     ide_identify(&ide_devices[0]);
     ide_identify(&ide_devices[1]);

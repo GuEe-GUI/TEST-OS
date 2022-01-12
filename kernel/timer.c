@@ -13,7 +13,7 @@ static inline uint32_t tick_to_millisecond()
     return tick_val * (tick_frequency / 10);
 }
 
-static void timer_isr(struct registers *reg)
+static void timer_isr(struct registers *regs)
 {
     ++tick_val;
 
@@ -23,7 +23,7 @@ static void timer_isr(struct registers *reg)
     }
 }
 
-void init_timer()
+void init_timer(void)
 {
     /* Intel 8253/8254 每秒中断次数 */
     uint32_t divisor = CLOCK_TICK_RATE / tick_frequency;
@@ -73,7 +73,7 @@ void sleep(uint32_t millisecond)
     }
 }
 
-void sleeper_polling()
+void sleeper_polling(void)
 {
     for (;;)
     {

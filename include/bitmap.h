@@ -17,6 +17,6 @@ void init_bitmap(uint32_t bytes_len);
 void *bitmap_malloc(size_t size);
 void *bitmap_realloc(void *addr, size_t size);
 void bitmap_free(void *addr);
-void print_mem();
+void print_mem(void);
 
 #endif /* _BITMAP_H_ */

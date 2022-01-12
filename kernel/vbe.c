@@ -7,7 +7,7 @@ static struct vbe_info vbe;
 static uint32_t screen_length;
 static uint8_t colors[6] = {0};
 
-void init_vbe()
+void init_vbe(void)
 {
     vbe.color_number = *((uint16_t *)VBE_ADDR);
     vbe.width        =  (uint32_t)(*((uint16_t *)(VBE_ADDR + 2)));
@@ -19,24 +19,26 @@ void init_vbe()
     screen_length    = vbe.width * PIXEL_BYTE;
 }
 
-uint32_t get_screen_width()
+uint32_t get_screen_width(void)
 {
     return screen_width;
 }
 
-uint32_t get_screen_height()
+uint32_t get_screen_height(void)
 {
     return screen_height;
 }
 
 void put_pixel(int32_t x, int32_t y, uint8_t r, uint8_t g, uint8_t b)
 {
+    int pos;
+
     if (x >= vbe.width || y >= vbe.height)
     {
         return;
     }
 
-    int pos = y * screen_length + x * PIXEL_BYTE;
+    pos = y * screen_length + x * PIXEL_BYTE;
     vbe.vram[pos + 0] = b;
     vbe.vram[pos + 1] = g;
     vbe.vram[pos + 2] = r;
@@ -64,14 +66,16 @@ void put_dword_pixels(int32_t x, int32_t y, int32_t width, int32_t height, uint8
 
 void send_pixel(int32_t x1, int32_t y1, int32_t x2, int32_t y2)
 {
+    int pos1, pos2;
+
     if ((x1 >= vbe.width || y1 >= vbe.height) ||
         (x2 >= vbe.width || y2 >= vbe.height))
     {
         return;
     }
 
-    int pos1 = y1 * screen_length + x1 * PIXEL_BYTE;
-    int pos2 = y2 * screen_length + x2 * PIXEL_BYTE;
+    pos1 = y1 * screen_length + x1 * PIXEL_BYTE;
+    pos2 = y2 * screen_length + x2 * PIXEL_BYTE;
     vbe.vram[pos2 + 0] = vbe.vram[pos1 + 0];
     vbe.vram[pos2 + 1] = vbe.vram[pos1 + 1];
     vbe.vram[pos2 + 2] = vbe.vram[pos1 + 2];
@@ -101,7 +105,7 @@ void set_color(uint32_t color, uint32_t background)
     colors[5] = BLUE(background);
 }
 
-void set_color_invert()
+void set_color_invert(void)
 {
     INTEGER_SWAP(colors[2], colors[5]);
     INTEGER_SWAP(colors[1], colors[4]);
