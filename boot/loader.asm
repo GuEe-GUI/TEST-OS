@@ -5,7 +5,6 @@ RES_3                   equ 0x11B           ; VBE 模式: 1280 x 1024 x 24 Bits
 
 VBEMODE                 equ RES_1
 
-DISPLAY_MODE_FLAG       equ 0x700           ; 保存显存信息的物理地址（实模式）
 VCOLOR                  equ 0               ; 保存颜色数的偏移
 SCREENX                 equ 2               ; 保存分辨率X的偏移
 SCREENY                 equ 4               ; 保存分辨率Y的偏移
@@ -27,7 +26,6 @@ PA_PAGE_ADDR            equ 0x5000          ; 物理内存页目录物理地址
 VA_PAGE_ADDR            equ 0x6000          ; 虚拟内存页目录物理地址
 
 KERNEL_START_SECTOR     equ 0x9             ; 存放内核的扇区号
-KERNEL_SECTORS          equ 348             ; 存放内核占用的扇区数量
 KERNEL_BIN_BASE_ADDR    equ 0x10000         ; 内核加载的物理地址（实模式）
 VIR_KERNEL_ENTRY        equ 0x80100000      ; 内核的虚拟地址入口
 

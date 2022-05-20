@@ -10,6 +10,8 @@
 
 void init_console(uint32_t width, uint32_t height);
 
+void console_dump_version(void);
+
 uint32_t get_console_cols(void);
 uint32_t get_console_rows(void);
 

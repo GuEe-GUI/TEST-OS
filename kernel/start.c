@@ -3,6 +3,7 @@
 #include <device.h>
 #include <disk.h>
 #include <eval.h>
+#include <fpu.h>
 #include <malloc.h>
 #include <memory.h>
 #include <interrupt.h>
@@ -18,6 +19,7 @@ void __attribute__((noreturn)) entry(void)
     init_console(get_screen_width(), get_screen_height());
     init_8259a();
     init_idt();
+    init_fpu();
     init_keyboard();
     init_timer();
     init_memory();

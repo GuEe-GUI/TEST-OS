@@ -39,7 +39,7 @@ POINT_BOOT_TITLE:
     jmp READ_FLOPPY
 
 READ_FLOPPY:
-    mov dx,0x0              ; Dh为头部号，dl为驱动器号
+    mov dx,0x0              ; Dh为头部号，Dl为驱动器号
     mov cx,0x2              ; 读取第二个扇区（扇区号起点为1，ch为柱面数，cl为扇区号）
     mov ax,LOADER_ADDR
     mov es,ax

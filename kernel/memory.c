@@ -74,10 +74,26 @@ static inline void memory_remap()
     LOG("remap virtual memory range = <0x%p 0x%p>", KERNEL_MAP_BASE_VADDR + KERNEL_MAP_EARLY_SIZE, map_paddr - PAGE_SIZE);
 }
 
-void __attribute__((noreturn)) page_failure_isr(struct registers *regs)
+static void __attribute__((noreturn)) page_failure_isr(struct registers *regs)
 {
+    uint32_t faul_addr;
+    int present = !(regs->error_code & 0x1);    /* 页面不存在 */
+    int rw = regs->error_code & 0x2;            /* 写操作？ */
+    int us = regs->error_code & 0x4;            /* 处理器处于用户模式？ */
+    int reserved = regs->error_code & 0x8;      /* 页面条目的 CPU 保留位被覆盖？ */
+    int id = regs->error_code & 0x10;           /* 由取指令引起的？ */
+
+    __asm__ volatile ("mov %%cr2, %0" : "=r" (faul_addr));
+
     set_color(0x8250dfff, CONSOLE_CLEAR);
-    printk("page failure error\n");
+
+    printk("page failure error at 0x%p:\n", faul_addr);
+    printk("present = %c\n", present ? 'Y' : 'N');
+    printk("read-only = %c\n", rw ? 'Y' : 'N');
+    printk("user-mode = %c\n", us ? 'Y' : 'N');
+    printk("reserved = %c\n", reserved ? 'Y' : 'N');
+    printk("instruction-fetch = %c\n", id ? 'Y' : 'N');
+
     print_registers(regs);
     ASSERT(0);
 }

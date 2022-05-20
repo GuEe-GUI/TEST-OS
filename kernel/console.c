@@ -19,6 +19,21 @@ static struct
 
 void init_console(uint32_t width, uint32_t height)
 {
+    console.width = width;
+    console.height = height;
+
+    console.max_x = (console.width / FONT_W) * FONT_W;
+    console.max_y = (console.height / FONT_H) * FONT_H;
+
+    set_color(console.fill, console.clear);
+    console_cls();
+    console_dump_version();
+
+    LOG("console width = %dPX, height = %dPX", console.width, console.height);
+}
+
+void console_dump_version(void)
+{
     int i, j, k = 0;
 
     /*
@@ -40,15 +55,6 @@ void init_console(uint32_t width, uint32_t height)
         0x78000000,
     };
 
-    console.width = width;
-    console.height = height;
-
-    console.max_x = (console.width / FONT_W) * FONT_W;
-    console.max_y = (console.height / FONT_H) * FONT_H;
-
-    set_color(console.fill, console.clear);
-    console_cls();
-
     for (i = 0; i < sizeof(logo) / sizeof(uint32_t); ++i)
     {
         for (j = 31; j >= 0; --j)
@@ -64,8 +70,6 @@ void init_console(uint32_t width, uint32_t height)
     }
 
     printk("\nTEST OS [Version %s]\n(C) %s %s. %s License.\n\n", OS_VERSION, OS_OWNER_YEAR, OS_OWNER_NAME, OS_LICENSE);
-
-    LOG("console width = %dPX, height = %dPX", console.width, console.height);
 }
 
 uint32_t get_console_cols(void)

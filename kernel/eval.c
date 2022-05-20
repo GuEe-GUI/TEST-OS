@@ -210,19 +210,22 @@ finsh:
             }
             cmdline_args[argc] = NULL;
 
-            while (node != NULL && node->magic == EVAL_VOID_MAGIC)
+            if (cmdline_args[0] != NULL)
             {
-                if (!strcmp(node->name, cmdline_args[0]))
+                while (node != NULL && node->magic == EVAL_VOID_MAGIC)
                 {
-                    node->handler(argc, cmdline_args);
-                    goto finsh;
+                    if (!strcmp(node->name, cmdline_args[0]))
+                    {
+                        node->handler(argc, cmdline_args);
+                        goto finsh;
+                    }
+                    ++node;
                 }
-                ++node;
-            }
 
-            set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
-            printk("`%s' is not defined\n", &cmdline_buffer[cmd_start_idx]);
-            set_color(CONSOLE_FILL, CONSOLE_CLEAR);
+                set_color(EVAL_COLOR_ERROR, CONSOLE_CLEAR);
+                printk("`%s' is not defined\n", &cmdline_buffer[cmd_start_idx]);
+                set_color(CONSOLE_FILL, CONSOLE_CLEAR);
+            }
         }
     }
 }

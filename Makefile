@@ -52,6 +52,7 @@ OBJS = \
 	io.o\
 	timer.o\
 	rtc.o\
+	fpu.o\
 	console.o\
 	assert.o\
 	memory.o\

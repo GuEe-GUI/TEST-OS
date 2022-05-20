@@ -25,6 +25,9 @@ struct color_bytes
 #define BLUE(x)     (((x) >>  8) & 0xff)
 #define ALPHA(x)    (((x) & 0xff))
 
+#define RGBA(r, g, b, a)    (((r) << 24) | ((g) << 16) | ((b) << 8) | 0xff)
+#define RGB(r, g, b)        RGBA(r, g, b, 0xff)
+
 #define FONT_W 8
 #define FONT_H 16
 

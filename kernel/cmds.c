@@ -4,6 +4,7 @@
 #include <disk.h>
 #include <eval.h>
 #include <interrupt.h>
+#include <io.h>
 #include <kernel.h>
 #include <malloc.h>
 #include <rtc.h>
@@ -14,6 +15,11 @@
 EVAL_VOID(cls, "Clear console")(int argc, char**argv)
 {
     console_cls();
+}
+
+EVAL_VOID(version, "Dump OS version")(int argc, char**argv)
+{
+    console_dump_version();
 }
 
 EVAL_VOID(powerdown, "Machine power down")(int argc, char**argv)
@@ -609,4 +615,50 @@ EVAL_VOID(popf, "Pop data from file")(int argc, char**argv)
     }
 
     disk_file_close(&file);
+}
+
+EVAL_VOID(graphic, "Graphic test")(int argc, char**argv)
+{
+    int i;
+    uint32_t width = get_screen_width();
+    uint32_t height = get_screen_height();
+    uint32_t x, y;
+    uint32_t colors[] =
+    {
+        RGB(0, 0, 0),
+        RGB(255, 0, 0),
+        RGB(0, 255, 0),
+        RGB(0, 0, 255),
+        RGB(255, 255, 255),
+    };
+
+    for (i = 0; i < ARRAY_SIZE(colors); ++i)
+    {
+        uint8_t r = RED(colors[i]);
+        uint8_t g = GREEN(colors[i]);
+        uint8_t b = BLUE(colors[i]);
+
+        for (x = 0; x < width; ++x)
+        {
+            for (y = 0; y < height; ++y)
+            {
+                put_pixel(x, y, r, g, b);
+            }
+        }
+
+        delay(500);
+    }
+
+    for (x = 0; x < width; ++x)
+    {
+        for (y = 0; y < height; ++y)
+        {
+            uint8_t r = soft_rand() & 0xff;
+            uint8_t g = soft_rand() & 0xff;
+            uint8_t b = soft_rand() & 0xff;
+            put_pixel(x, y, r, g, b);
+        }
+    }
+
+    return;
 }
