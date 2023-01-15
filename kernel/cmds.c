@@ -259,6 +259,8 @@ EVAL_VOID(dir, "Display files and directories in this directory")(int argc, char
 
     disk_id = DISK_PATH_ID(get_eval_path());
 
+    memset(&dir_entry, 0, sizeof(dir_entry));
+
     while (disk_dir_read(&dir, &dir_entry) >= 0)
     {
         len = printk("%s ", dir_entry.name);
@@ -470,7 +472,7 @@ EVAL_VOID(pushf, "Push data to file")(int argc, char**argv)
         return;
     }
 
-    if (&argv[2][2] != NULL)
+    if (argv[2][2] != '\0')
     {
         offset = 0;
     }

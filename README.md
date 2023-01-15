@@ -11,6 +11,6 @@
 [线程创建](doc/thread.md)
 
 ## 3、运行效果
-![展示](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/show.png "展示")
-![帮助](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/help.png "帮助")
-![磁盘](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/disk.png "磁盘")
+![展示](doc/show.png "展示")
+![帮助](doc/help.png "帮助")
+![磁盘](doc/disk.png "磁盘")

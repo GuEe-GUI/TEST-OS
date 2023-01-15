@@ -9,6 +9,7 @@
 #define KERNEL_THREAD_MAX           (1 << 8)   /* 256 */
 #define KERNEL_THREAD_NAME_LEN      16
 #define KERNEL_THREAD_STACK_SIZE    (4 * KB)
+#define KERNEL_THREAD_CONSOLE_SIZE  512
 
 enum THREAD_STATUS
 {
@@ -37,6 +38,7 @@ struct thread
     uint32_t wake_millisecond;
     uint32_t ref;
     char name[KERNEL_THREAD_NAME_LEN];
+    char console_cache[KERNEL_THREAD_CONSOLE_SIZE];
 
     void (*handler)(void *params);
     void *params;

@@ -9,6 +9,7 @@ KERNEL_LINKER_ADDR   = 0x80100000
 CROSS_COMPILE := x86_64-elf-
 RAM           := 128
 DEBUG_MODE    := y
+GDB_MODE      := n
 
 ifeq ($(OS),Windows_NT)
 	ADMIN_NAME = $(shell whoami | sed 's/.*\\\\\(.*\\)/\\1/')
@@ -25,6 +26,7 @@ endif
 AS = nasm
 CC = $(CROSS_COMPILE)gcc
 LD = $(CROSS_COMPILE)ld
+GDB = $(CROSS_COMPILE)gdb
 OBJDUMP = $(CROSS_COMPILE)objdump
 
 BUILD_DIR = build
@@ -37,8 +39,14 @@ TEST_OS_IMG = TEST-OS.img
 FAT_FS_IMG  = FAT-FS.img
 
 ASM_FLAGS = -f elf32
-C_FLAGS = -O1 -Iinclude -Ikernel -m32 -D$(MODE) -Wall -nostdlib -fno-builtin -fno-leading-underscore
+C_FLAGS = -O0 -Iinclude -Ikernel -m32 -D$(MODE) -Wall -nostdlib -fno-builtin \
+		-fno-leading-underscore -fno-stack-protector
 LD_FLAGS = -m elf_i386 -e _start -Ttext $(KERNEL_LINKER_ADDR)
+
+ifeq ($(GDB_MODE),y)
+	QEMU_GDB = -s -S
+	C_FLAGS += -g -ggdb
+endif
 
 OBJS = \
 	_Start.o\
@@ -94,7 +102,12 @@ run: $(TEST_OS_IMG) $(FAT_FS_IMG)
 		-m $(RAM) \
 		-rtc base=localtime \
 		-drive file=$(FAT_FS_IMG),format=raw,if=ide \
-		-boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy
+		-boot a -drive file=$(TEST_OS_IMG),format=raw,index=0,if=floppy \
+		-monitor mon:stdio \
+		$(QEMU_GDB)
+
+gdb: $(KERNEL_FILE)
+	$(GDB) $< -ex "target remote:1234"
 
 clean:
 	@echo [RM] $(BUILD_DIR)

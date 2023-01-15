@@ -664,7 +664,7 @@ static int commit_fat32_buffer(struct disk *disk, struct fat32_fs *fs)
 static int fat32_dir_update_rootdir_entry(struct disk *disk, struct fat32_file *file)
 {
     struct fat32_fs *fs = file->fs;
-    struct fat32_disk_dir_entry dentry;
+    struct fat32_disk_dir_entry dentry = { 0 };
 
     int64_t rootdir_offset = fs->bpb.reserved_sectors + (fs->bpb.num_fats * fs->bpb.fat_sectors);
     uint32_t offset = rootdir_offset * 512 + file->dir_entry.index_in_dir * sizeof(struct fat32_disk_dir_entry);
@@ -906,8 +906,8 @@ found:
 
 static int fat32_file_open(struct disk *disk, const char *path, struct file *file)
 {
-    struct dir dir;
-    struct dir_entry dir_entry;
+    struct dir dir = { 0 };
+    struct dir_entry dir_entry = { 0 };
     struct fat32_dir_entry *fs_dir_entry = (struct fat32_dir_entry *)malloc(sizeof(struct fat32_dir_entry));
     int ret = -1;
     int len;

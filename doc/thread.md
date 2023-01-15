@@ -42,4 +42,4 @@ EVAL_VOID(thread_demo, "thread demo")(int argc, char**argv)
 ```
 
 ## 截图
-![截图](https://raw.githubusercontent.com/GuEe-GUI/TEST-OS/master/doc/thread.png "截图")
+![截图](thread.png "截图")

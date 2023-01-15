@@ -1,16 +1,29 @@
 #include <kernel.h>
 #include <stdarg.h>
 #include <text.h>
+#include <thread.h>
+#include <memory.h>
 #include <console.h>
 
 int printk(const char *fmt, ...)
 {
+    char *result;
     int string_length = 0;
-    /* 多线程下不允许使用static */
-    char result[2048] = {0};
+    struct thread *thread = thread_current();
     va_list arg_ptr;
 
     va_start(arg_ptr, fmt);
+
+    /* 多线程下不允许使用static */
+    if (thread)
+    {
+        result = &thread->console_cache[0];
+    }
+    else
+    {
+        /* 在 KERNEL_STACK_TOP 之后有一段 4K 大小的预留空间，多线程启用后此处分支将不再进入 */
+        result = (char *)KERNEL_STACK_TOP;
+    }
 
     while (*fmt)
     {

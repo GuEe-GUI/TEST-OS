@@ -19,7 +19,7 @@
 #define PAGE_ATTR_NOT_PRESENT   0   /* 0000 不存在内存上 */
 #define PAGE_ATTR_PRESENT       1   /* 0001 存在内存上 */
 #define PAGE_ATTR_READ          0   /* 0000 R/W 可读/可执行 */
-#define PAGE_ATTR_WRITE         2   /* 0010 R/W 可读/可写/可执行*/
+#define PAGE_ATTR_WRITE         2   /* 0010 R/W 可读/可写/可执行 */
 #define PAGE_ATTR_SYSTEM        0   /* 0000 U/S 系统, cpl0,1,2 */
 #define PAGE_ATTR_USER          4   /* 0100 U/S 用户, cpl3 */
 

@@ -17,9 +17,9 @@ void __attribute__((noreturn)) entry(void)
 {
     init_vbe();
     init_console(get_screen_width(), get_screen_height());
+    init_fpu();
     init_8259a();
     init_idt();
-    init_fpu();
     init_keyboard();
     init_timer();
     init_memory();

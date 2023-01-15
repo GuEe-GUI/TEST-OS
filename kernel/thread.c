@@ -247,8 +247,6 @@ finsh:
 
 struct thread *thread_current(void)
 {
-    ASSERT(current_thread != NULL);
-
     return current_thread;
 }
 
