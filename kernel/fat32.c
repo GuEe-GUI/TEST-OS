@@ -346,6 +346,23 @@ static uint32_t get_next_cluster_fat32(struct disk *disk, struct fat32_fs *fs, u
     return value;
 }
 
+static int set_next_cluster_fat32(struct disk *disk, struct fat32_fs *fs, uint32_t cluster, uint32_t next)
+{
+    uint8_t *buf;
+    uint32_t fat32_sector = (cluster * sizeof(uint32_t)) / 512;
+    uint32_t fat32_offset = (cluster * sizeof(uint32_t)) % 512;
+
+    if ((buf = get_fat32_buffer(disk, fs, fat32_sector)) == NULL)
+    {
+        return -FAT_EIO;
+    }
+
+    *((uint32_t *)&buf[fat32_offset]) = next;
+    fat32_buf_changed = 1;
+
+    return 0;
+}
+
 static int fat32_file_open_by_dir_entry(struct disk *disk, struct fat32_dir_entry *entry, struct fat32_file *file)
 {
     struct fat32_fs *fs = disk->fs;
@@ -758,6 +775,7 @@ static int fat32_dir_update_entry(struct disk *disk, struct fat32_file *file)
 
 static int fat32_extend_file(struct disk *disk, struct fat32_file *file, uint32_t new_size)
 {
+    int ret;
     struct fat32_fs *fs = file->fs;
     uint32_t cluster_size = fs->bpb.cluster_sectors * 512;
     size_t old_blocklist_size = file->blocklist_size;
@@ -789,19 +807,51 @@ static int fat32_extend_file(struct disk *disk, struct fat32_file *file, uint32_
             /* Freien Cluster suchen und einhaengen */
             for (j = free_index; j < num_data_clusters; ++j)
             {
-                if (get_next_cluster_fat32(disk, fs, j) == 0) {
+                /* Skip cluster 0/1 */
+                if (j < 2)
+                {
+                    continue;
+                }
 
+                /* Find the empty cluster */
+                if (get_next_cluster_fat32(disk, fs, j) == 0)
+                {
                     /* Neue EOF-Markierung */
                     file->blocklist[i] = j;
-                    return -FAT_EINVAL;
+
+                    if ((ret = set_next_cluster_fat32(disk, fs, j, 0x0fffffff)) < 0)
+                    {
+                        return ret;
+                    }
+
+                    if (i == 0 && file->dir_entry.first_cluster == 0)
+                    {
+                        file->dir_entry.first_cluster = j;
+                    }
+                    else
+                    {
+                        if ((ret = set_next_cluster_fat32(disk, fs, file->blocklist[i - 1], j)) < 0)
+                        {
+                            return ret;
+                        }
+                    }
+
+                    free_index = j + 1;
+                    break;
                 }
             }
 
-            return -FAT_ENOSPC;
+            if (j == num_data_clusters)
+            {
+                return -FAT_ENOSPC;
+            }
         }
 
         /* Und zuletzt veraenderte Eintraege zurueckschreiben */
-        commit_fat32_buffer(disk, fs);
+        if ((ret = commit_fat32_buffer(disk, fs)) < 0)
+        {
+            return ret;
+        }
     }
 
     /* Dateigroesse anpassen und ggf. neuen ersten Cluster eintragen */
@@ -809,7 +859,10 @@ static int fat32_extend_file(struct disk *disk, struct fat32_file *file, uint32_
 
     if ((file->dir_entry.attrib & FAT_ATTRIB_DIR) == 0)
     {
-        fat32_dir_update_entry(disk, file);
+        if ((ret = fat32_dir_update_entry(disk, file)) < 0)
+        {
+            return ret;
+        }
     }
 
     return 0;
