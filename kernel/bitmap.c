@@ -136,8 +136,26 @@ end:
 
 void *bitmap_realloc(void *addr, size_t size)
 {
-    /* 这里不再基于bitmap处理，而是直接用新内存（size存放在addr - 4字节） */
-    size_t old_size = *(((uint8_t *)addr) - 4) * 4 * KB;
+    size_t old_size;
+
+    /* realloc(NULL, size) 等价于 malloc(size) */
+    if (addr == NULL)
+    {
+        return bitmap_malloc(size);
+    }
+
+    /* realloc(addr, 0) 等价于 free(addr) */
+    if (size == 0)
+    {
+        bitmap_free(addr);
+        return NULL;
+    }
+
+    /*
+     * 不在原位扩展，需要更大空间时分配新块、拷贝、释放旧块。
+     * 旧块可用字节数保存在 addr - 4 处（单位为 4KB 页数）。
+     */
+    old_size = *((uint32_t *)((uint8_t *)addr - 4)) * (4 * KB);
 
     if (old_size < size)
     {
@@ -145,7 +163,7 @@ void *bitmap_realloc(void *addr, size_t size)
 
         if (new_ptr != NULL)
         {
-            memcpy(new_ptr, addr, old_size);
+            memcpy(new_ptr, addr, size < old_size ? size : old_size);
             bitmap_free(addr);
         }
 
