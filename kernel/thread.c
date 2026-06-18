@@ -359,6 +359,7 @@ void thread_wait(tid_t tid)
         }
 
         --(node->ref);
+        return;
     }
 
     pe_unlock(&thread_lock);
