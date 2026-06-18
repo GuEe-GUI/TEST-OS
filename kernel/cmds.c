@@ -234,7 +234,7 @@ EVAL_VOID(md, "Make a directory")(int argc, char**argv)
         goto fail;
     }
 
-    if (!disk_dir_create(&dir, argv[3], NULL))
+    if (!disk_dir_create(&dir, argv[1], NULL))
     {
         goto success;
     }
@@ -461,7 +461,8 @@ EVAL_VOID(pushf, "Push data to file")(int argc, char**argv)
 {
     char path[KERNEL_DISK_MAX_PATH];
     int length;
-    off_t offset;
+    int append = 0;
+    off_t offset = 0;
     struct file file;
 
     if (argc < 4 || argv[2][0] != '>' || strlen(argv[2]) > 2)
@@ -472,17 +473,17 @@ EVAL_VOID(pushf, "Push data to file")(int argc, char**argv)
         return;
     }
 
-    if (argv[2][2] != '\0')
+    if (argv[2][1] == '\0')
     {
-        offset = 0;
+        append = 0;
     }
-    else if (argv[2][2] == '>')
+    else if (argv[2][1] == '>' && argv[2][2] == '\0')
     {
-        offset = !0;
+        append = 1;
     }
     else
     {
-        printk("unrecognized option `%s'\n", &argv[2][2]);
+        printk("unrecognized option `%s'\n", argv[2]);
         return;
     }
 
@@ -493,38 +494,53 @@ EVAL_VOID(pushf, "Push data to file")(int argc, char**argv)
     if (disk_file_open(path, &file) < 0)
     {
         struct dir dir;
-        int flag = 0;
 
         if (disk_dir_open(get_eval_path(), &dir) < 0)
         {
-            goto fail;
+            printk("open path fail\n");
+            return;
         }
 
-        if (!disk_dir_create_entry(&dir, argv[3], 0, NULL))
+        if (disk_dir_create_entry(&dir, argv[3], 0, NULL))
         {
-            goto success;
+            disk_dir_close(&dir);
+            printk("create file `%s' fail\n", argv[3]);
+            return;
         }
 
-    fail:
-        flag = printk("create file `%s' fail\n", argv[3]);
-    success:
         disk_dir_close(&dir);
 
-        if (flag)
+        if (disk_file_open(path, &file) < 0)
         {
+            printk("open file `%s' fail\n", argv[3]);
             return;
         }
     }
 
-    if (offset)
+    size_t len = strlen(argv[1]);
+
+    if (append)
     {
         if (disk_fs_request(DISK_PATH_ID(get_eval_path()), FS_FILE_SIZE, &file, &offset))
         {
-            offset = 0;
+            printk("get file size fail\n");
+            disk_file_close(&file);
+            return;
         }
     }
 
-    disk_file_write(&file, argv[1], offset, strlen(argv[1]));
+    disk_file_write(&file, argv[1], offset, len);
+
+    if (!append)
+    {
+        size_t new_size = offset + len;
+
+        if (disk_fs_request(DISK_PATH_ID(get_eval_path()), FS_FILE_SET_SIZE, &file, &new_size))
+        {
+            printk("set file size fail\n");
+        }
+    }
+
     disk_file_close(&file);
 }
 
