@@ -155,6 +155,7 @@ static struct fat32_fs *fat32_buf_fs = NULL;
 static uint32_t fat32_buf_sector = 0;
 static int fat32_buf_changed = 0;
 
+static int commit_fat32_buffer(struct disk *disk, struct fat32_fs *fs);
 static int fat32_file_open(struct disk *disk, const char *path, struct file *file);
 static int fat32_file_close(struct disk *disk, struct file *file);
 static size_t fat32_file_read(struct disk *disk, struct file *file, void *buffer, off_t offset, size_t length);
@@ -309,8 +310,15 @@ static uint8_t *get_fat32_buffer(struct disk *disk, struct fat32_fs *fs, uint32_
         return fat32_buf;
     }
 
-    /* FIXME Write back changed entries before overwriting them */
-    /* TODO Evtl. reicht memcpy und lesen nur eines Sektors */
+    if (fat32_buf_changed && fat32_buf_fs != NULL)
+    {
+        if (commit_fat32_buffer(disk, fat32_buf_fs) < 0)
+        {
+            fat32_buf_fs = NULL;
+            return NULL;
+        }
+    }
+
     if (!disk->device_read(disk, sector, fat32_buf, 1024 / 512))
     {
         fat32_buf_fs = NULL;
@@ -678,29 +686,6 @@ static int commit_fat32_buffer(struct disk *disk, struct fat32_fs *fs)
     return 0;
 }
 
-static int fat32_dir_update_rootdir_entry(struct disk *disk, struct fat32_file *file)
-{
-    struct fat32_fs *fs = file->fs;
-    struct fat32_disk_dir_entry dentry = { 0 };
-
-    int64_t rootdir_offset = fs->bpb.reserved_sectors + (fs->bpb.num_fats * fs->bpb.fat_sectors);
-    uint32_t offset = rootdir_offset * 512 + file->dir_entry.index_in_dir * sizeof(struct fat32_disk_dir_entry);
-
-    if (!disk->device_write(disk, offset / 512, &dentry, sizeof(struct fat32_disk_dir_entry) / 512))
-    {
-        return -FAT_EIO;
-    }
-
-    dir_entry_to_disk(file, &dentry);
-
-    if (!disk->device_write(disk, offset / 512, &dentry, sizeof(struct fat32_disk_dir_entry) / 512))
-    {
-        return -FAT_EIO;
-    }
-
-    return 0;
-}
-
 static int fat32_dir_update_subdir_entry(struct disk *disk, struct fat32_file *file)
 {
     struct fat32_dir_entry fs_dir_entry =
@@ -727,8 +712,7 @@ static int fat32_dir_update_subdir_entry(struct disk *disk, struct fat32_file *f
         goto fail;
     }
 
-    /* Bisherigen Verzeichniseintrag laden, falls vorhanden */
-    if (offset < file->size)
+    if (offset + sizeof(file_dentry) <= fs_dir_file->size)
     {
         if ((ret = fat32_file_read(disk, &dir_file, &file_dentry, offset, sizeof(struct fat32_disk_dir_entry))) < 0)
         {
@@ -740,11 +724,12 @@ static int fat32_dir_update_subdir_entry(struct disk *disk, struct fat32_file *f
         memset(&file_dentry, 0, sizeof(file_dentry));
     }
 
-    /* Felder aktualisieren */
     dir_entry_to_disk(file, &file_dentry);
 
-    if ((ret = fat32_file_write(disk, &dir_file, &file_dentry, offset, sizeof(struct fat32_disk_dir_entry))) < 0)
+    if (fat32_file_write(disk, &dir_file, &file_dentry, offset,
+                         sizeof(struct fat32_disk_dir_entry)) != sizeof(struct fat32_disk_dir_entry))
     {
+        ret = -FAT_EIO;
         goto fail;
     }
 
@@ -763,14 +748,113 @@ fail:
 
 static int fat32_dir_update_entry(struct disk *disk, struct fat32_file *file)
 {
-    if (file->dir_entry.dir_first_cluster == 0)
+    struct fat32_fs *fs = file->fs;
+    uint32_t saved_parent = file->dir_entry.dir_first_cluster;
+    int ret;
+
+    if (saved_parent == 0)
     {
-        return fat32_dir_update_rootdir_entry(disk, file);
+        file->dir_entry.dir_first_cluster = fs->bpb.extended.rootdir_cluster;
     }
-    else
+
+    ret = fat32_dir_update_subdir_entry(disk, file);
+    file->dir_entry.dir_first_cluster = saved_parent;
+
+    return ret;
+}
+
+static int fat32_zero_cluster(struct disk *disk, struct fat32_fs *fs, uint32_t cluster_idx)
+{
+    static uint8_t zero_cluster[512];
+
+    return write_cluster(disk, fs, zero_cluster, cluster_idx);
+}
+
+static int fat32_truncate_file(struct disk *disk, struct fat32_file *file, uint32_t new_size)
+{
+    int ret;
+    struct fat32_fs *fs = file->fs;
+    uint32_t cluster_size = fs->bpb.cluster_sectors * 512;
+    size_t new_blocks = 0;
+    size_t i;
+
+    if (new_size >= file->size)
     {
-        return fat32_dir_update_subdir_entry(disk, file);
+        return 0;
     }
+
+    if (new_size > 0)
+    {
+        new_blocks = NUM_CLUSTERS(new_size, cluster_size);
+        if (new_blocks == 0)
+        {
+            new_blocks = 1;
+        }
+    }
+
+    if (file->blocklist != NULL)
+    {
+        if (new_blocks == 0)
+        {
+            for (i = 0; i < file->blocklist_size; ++i)
+            {
+                if (file->blocklist[i] >= 2)
+                {
+                    if ((ret = set_next_cluster_fat32(disk, fs, file->blocklist[i], 0)) < 0)
+                    {
+                        return ret;
+                    }
+                }
+            }
+
+            free(file->blocklist);
+            file->blocklist = NULL;
+            file->blocklist_size = 0;
+            file->dir_entry.first_cluster = 0;
+        }
+        else if (new_blocks < file->blocklist_size)
+        {
+            for (i = new_blocks; i < file->blocklist_size; ++i)
+            {
+                if (file->blocklist[i] >= 2)
+                {
+                    if ((ret = set_next_cluster_fat32(disk, fs, file->blocklist[i], 0)) < 0)
+                    {
+                        return ret;
+                    }
+                }
+            }
+
+            if ((ret = set_next_cluster_fat32(disk, fs, file->blocklist[new_blocks - 1], 0x0fffffff)) < 0)
+            {
+                return ret;
+            }
+
+            file->blocklist = realloc(file->blocklist, new_blocks * sizeof(uint32_t));
+            if (file->blocklist == NULL)
+            {
+                return -FAT_EIO;
+            }
+            file->blocklist_size = new_blocks;
+        }
+
+        if ((ret = commit_fat32_buffer(disk, fs)) < 0)
+        {
+            return ret;
+        }
+    }
+
+    file->size = new_size;
+
+    if ((file->dir_entry.attrib & FAT_ATTRIB_DIR) == 0)
+    {
+        if ((ret = fat32_dir_update_entry(disk, file)) < 0)
+        {
+            return ret;
+        }
+    }
+
+    return 0;
 }
 
 static int fat32_extend_file(struct disk *disk, struct fat32_file *file, uint32_t new_size)
@@ -779,44 +863,49 @@ static int fat32_extend_file(struct disk *disk, struct fat32_file *file, uint32_
     struct fat32_fs *fs = file->fs;
     uint32_t cluster_size = fs->bpb.cluster_sectors * 512;
     size_t old_blocklist_size = file->blocklist_size;
-    size_t new_blocklist_size = NUM_CLUSTERS(new_size, cluster_size);
+    size_t new_blocklist_size;
 
-    /* Ersten Cluster der Kette allozieren */
-    if (file->blocklist == NULL)
+    if (new_size == 0)
     {
-        old_blocklist_size = 1;
-        file->blocklist_size = 1;
-        file->blocklist = malloc(sizeof(*file->blocklist));
-        file->blocklist[0] = file->dir_entry.first_cluster;
+        return 0;
     }
 
-    /* Wenn noetig, neue Cluster allozieren */
-    if (new_blocklist_size != old_blocklist_size)
+    new_blocklist_size = NUM_CLUSTERS(new_size, cluster_size);
+    if (new_blocklist_size == 0)
+    {
+        new_blocklist_size = 1;
+    }
+
+    if (new_blocklist_size > old_blocklist_size)
     {
         uint32_t i, j;
-        uint32_t free_index = 0;
-        uint32_t num_data_clusters = NUM_CLUSTERS(fs->total_sectors - fs->first_data_cluster, fs->bpb.cluster_sectors);
+        uint32_t free_index = 2;
+        uint32_t num_clusters = NUM_CLUSTERS(fs->total_sectors - fs->first_data_cluster,
+                                             fs->bpb.cluster_sectors) + 2;
 
-        /* Blockliste vergroessern */
         file->blocklist = realloc(file->blocklist, new_blocklist_size * sizeof(uint32_t));
+        if (file->blocklist == NULL)
+        {
+            return -FAT_EIO;
+        }
         file->blocklist_size = new_blocklist_size;
 
-        /* Neue Eintraege der Blockliste befuellen */
         for (i = old_blocklist_size; i < new_blocklist_size; ++i)
         {
-            /* Freien Cluster suchen und einhaengen */
-            for (j = free_index; j < num_data_clusters; ++j)
+            for (j = free_index; j < num_clusters; ++j)
             {
-                /* Skip cluster 0/1 */
                 if (j < 2)
                 {
                     continue;
                 }
 
-                /* Find the empty cluster */
                 if (get_next_cluster_fat32(disk, fs, j) == 0)
                 {
-                    /* Neue EOF-Markierung */
+                    if ((ret = fat32_zero_cluster(disk, fs, j)) < 0)
+                    {
+                        return ret;
+                    }
+
                     file->blocklist[i] = j;
 
                     if ((ret = set_next_cluster_fat32(disk, fs, j, 0x0fffffff)) < 0)
@@ -824,7 +913,7 @@ static int fat32_extend_file(struct disk *disk, struct fat32_file *file, uint32_
                         return ret;
                     }
 
-                    if (i == 0 && file->dir_entry.first_cluster == 0)
+                    if (i == 0)
                     {
                         file->dir_entry.first_cluster = j;
                     }
@@ -841,20 +930,18 @@ static int fat32_extend_file(struct disk *disk, struct fat32_file *file, uint32_
                 }
             }
 
-            if (j == num_data_clusters)
+            if (j >= num_clusters)
             {
                 return -FAT_ENOSPC;
             }
         }
 
-        /* Und zuletzt veraenderte Eintraege zurueckschreiben */
         if ((ret = commit_fat32_buffer(disk, fs)) < 0)
         {
             return ret;
         }
     }
 
-    /* Dateigroesse anpassen und ggf. neuen ersten Cluster eintragen */
     file->size = new_size;
 
     if ((file->dir_entry.attrib & FAT_ATTRIB_DIR) == 0)
@@ -1089,7 +1176,7 @@ static size_t fat32_file_write(struct disk *disk, struct file *file, const void 
 
         if (ret < 0)
         {
-            return ret;
+            return 0;
         }
     }
 
@@ -1202,7 +1289,7 @@ static int fat32_dir_create_entry(struct disk *disk, struct dir *dir, const char
     int i;
     int ret;
     struct fat32_dir *fs_dir = dir->fs_dir;
-    struct fat32_dir_entry *fs_dir_entry = dir_entry->fs_dir_entry;
+    struct fat32_dir_entry *fs_dir_entry = (dir_entry != NULL) ? dir_entry->fs_dir_entry : NULL;
 
     /* Dateistruktur faken, deren Verzeichniseintrag "geaendert" werden soll */
     struct fat32_file file =
@@ -1320,20 +1407,46 @@ int fat32_request(struct disk *disk, enum FS_REQUEST_TYPE type, void *params, vo
         if (params != NULL && ret != NULL)
         {
             struct fat32_file *fs_file = ((struct file *)(params))->fs_file;
+
+            if (fs_file == NULL)
+            {
+                return -1;
+            }
+
             *(size_t *)ret = fs_file->size;
+            return 0;
         }
-    break;
+        return -1;
+    case FS_FILE_SET_SIZE:
+        if (params != NULL && ret != NULL)
+        {
+            struct fat32_file *fs_file = ((struct file *)(params))->fs_file;
+
+            if (fs_file == NULL)
+            {
+                return -1;
+            }
+
+            return fat32_truncate_file(disk, fs_file, *(uint32_t *)ret);
+        }
+        return -1;
     case FS_DIR_ENTRY_SIZE:
         if (params != NULL && ret != NULL)
         {
             struct fat32_dir_entry *fs_dir_entry = ((struct dir_entry *)(params))->fs_dir_entry;
-            *(size_t *)ret = fs_dir_entry->size;
-        }
-    break;
-    default: break;
-    }
 
-    return -1;
+            if (fs_dir_entry == NULL)
+            {
+                return -1;
+            }
+
+            *(size_t *)ret = fs_dir_entry->size;
+            return 0;
+        }
+        return -1;
+    default:
+        return -1;
+    }
 }
 
 int fat32_check(struct disk *disk)
